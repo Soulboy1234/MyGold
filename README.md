@@ -13,10 +13,10 @@ This repository is prepared for GitHub sharing. Runtime outputs, local state, da
 
 ```text
 .
-├─ gold-monitor
-├─ gold-dashboard
-├─ gold-investor-agent
-└─ gold-task-suite
+|- gold-monitor
+|- gold-dashboard
+|- gold-investor-agent
+`- gold-task-suite
 ```
 
 Key files:
@@ -93,7 +93,7 @@ This repository does not keep:
 
 For future version updates, use the fixed workflow documented here:
 
-- [VERSION_UPDATE_WORKFLOW.md](/D:/codex/docs/VERSION_UPDATE_WORKFLOW.md)
+- [VERSION_UPDATE_WORKFLOW.md](docs/VERSION_UPDATE_WORKFLOW.md)
 
 In short:
 
@@ -105,4 +105,4 @@ In short:
 
 ## License
 
-This repository currently uses the MIT License. See [LICENSE](/D:/codex/LICENSE).
+This repository currently uses the MIT License. See [LICENSE](LICENSE).
