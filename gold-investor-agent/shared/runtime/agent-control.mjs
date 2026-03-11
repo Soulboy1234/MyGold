@@ -180,6 +180,9 @@ function buildAgentSnapshot(portfolio, market = null) {
       equityCny: null,
       cashCny: null,
       goldGrams: null,
+      goldMarketValueCny: null,
+      averageCostCnyPerGram: null,
+      costBasisCny: null,
       currentPriceCnyPerGram: market?.priceCnyPerGram ?? null,
       valuationCheckedAtLocal: market?.checkedAtLocal ?? null,
     };
@@ -191,6 +194,9 @@ function buildAgentSnapshot(portfolio, market = null) {
     equityCny: marked.equityCny,
     cashCny: marked.cashCny,
     goldGrams: marked.goldGrams,
+    goldMarketValueCny: marked.goldMarketValueCny,
+    averageCostCnyPerGram: marked.averageCostCnyPerGram,
+    costBasisCny: marked.costBasisCny,
     currentPriceCnyPerGram: marked.currentPriceCnyPerGram,
     valuationCheckedAtLocal: market?.checkedAtLocal ?? null,
   };

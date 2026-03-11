@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
+import { loadStrategyConfig } from "../../shared/runtime/strategy-config.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,9 +29,10 @@ const FILES = {
   strategyReport: path.join(OUT_DIR, "strategy-report.md"),
   dashboardData: path.join(OUT_DIR, "dashboard-data.json"),
   strategyHistory: path.join(OUT_DIR, "strategy-history.json"),
+  strategyConfig: path.join(AGENT_DIR, "strategy-config.json"),
 };
 
-const CONFIG = {
+const DEFAULT_CONFIG = {
   initialCapital: 100000,
   sellFeePerGram: 4,
   minTradeCny: 8000,
@@ -221,6 +223,12 @@ Object.assign(STRATEGY, {
 applyChineseStrategyText();
 
 await mkdir(OUT_DIR, { recursive: true });
+
+const CONFIG = await loadStrategyConfig(FILES.strategyConfig, DEFAULT_CONFIG, {
+  agentName: "agent3-长线选手",
+  strategyVersion: STRATEGY_HISTORY.currentVersion,
+  description: "长线选手自动策略参数。修改后会同时影响历史回测与实时决策。",
+});
 
 const latest = JSON.parse(cleanText(await readFile(INPUTS.latest, "utf8")));
 const intradayTape = await loadJsonLines(INPUTS.intradayJsonl);

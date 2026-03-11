@@ -1,5 +1,7 @@
 # gold-task-suite-win
 
+Current package version: `V1.3.1`
+
 This folder is the Windows packaging and environment-control layer for:
 
 - `gold-monitor`
@@ -39,7 +41,7 @@ It corresponds to the platform-specific packaging set:
 
 - `gold-monitor`: `package 1.1.0`, `snapshot V1.1.0`
 - `gold-dashboard`: `package 1.0.0`, `snapshot V1.0.0`
-- `gold-investor-agent`: `package 4.2.0`, `snapshot V4.2.0`
+- `gold-investor-agent`: `package 4.3.1`, `snapshot V4.3.1`
 
 See `manifest.json` for details.
 

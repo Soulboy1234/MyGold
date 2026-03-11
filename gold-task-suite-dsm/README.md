@@ -1,5 +1,7 @@
 # Gold Task Suite for DSM
 
+Current package version: `V1.3.1`
+
 This folder provides DSM-oriented wrapper scripts for Synology Task Scheduler. It delegates to the Linux suite and gives you simple task entrypoints for install, start, stop, restart, and status checks.
 
 ## Files

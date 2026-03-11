@@ -1,0 +1,22 @@
+{
+  "_agentName": "agent1-基础",
+  "_strategyVersion": "v2.3.0",
+  "_description": "基础版自动策略参数。修改后会同时影响历史回测与实时决策。",
+  "initialCapital": 100000,
+  "sellFeePerGram": 4,
+  "minTradeCny": 2000,
+  "rebalanceBufferRatio": 0.05,
+  "minNetTrimPnlCny": 80,
+  "minNetTrimPnlPerGram": 1.6,
+  "minHoursBeforeNormalTrim": 8,
+  "targetRatioCautious": 0.12,
+  "targetRatioProbe": 0.28,
+  "targetRatioBalanced": 0.45,
+  "targetRatioStrong": 0.55,
+  "scoreExitThreshold": 24,
+  "scoreProbeThreshold": 48,
+  "scoreBalancedThreshold": 56,
+  "scoreStrongThreshold": 70,
+  "longTrendExitPct": 0.97,
+  "dashboardLookbackDays": 180
+}

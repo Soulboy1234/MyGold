@@ -25,28 +25,39 @@ This repository is prepared for GitHub sharing. Runtime outputs, local state, da
 Key files:
 
 - `gold-task-suite-win/manifest.json`: unified Windows environment and version manifest
+- `gold-task-suite-win/version.json`: Windows packaging version marker
 - `gold-task-suite-win/install.cmd`: install environment only
 - `gold-task-suite-win/install-and-run.cmd`: one-click install and start
 - `gold-task-suite-win/start-all.cmd`: start all services
 - `gold-task-suite-win/stop-all.cmd`: stop all services
 - `gold-task-suite-win/open-all-panels.cmd`: open all dashboards
 - `gold-task-suite-macos/install.sh`: install environment for macOS
+- `gold-task-suite-macos/version.json`: macOS packaging version marker
 - `gold-task-suite-macos/install-and-run.sh`: install and start on macOS
 - `gold-task-suite-macos/start-all.sh`: start all services on macOS
 - `gold-task-suite-macos/stop-all.sh`: stop all services on macOS
 - `gold-task-suite-linux/install.sh`: install environment for Linux/NAS
+- `gold-task-suite-linux/version.json`: Linux packaging version marker
 - `gold-task-suite-linux/install-and-run.sh`: install and start on Linux/NAS
 - `gold-task-suite-linux/start-all.sh`: start all services on Linux/NAS
 - `gold-task-suite-linux/stop-all.sh`: stop all services on Linux/NAS
 - `gold-task-suite-dsm/dsm-start.sh`: one-click DSM Task Scheduler entrypoint
+- `gold-task-suite-dsm/version.json`: DSM packaging version marker
 
 ## Managed Projects
+
+Current packaging version set:
+
+- `gold-task-suite-win`: `V1.3.1`
+- `gold-task-suite-linux`: `V1.3.1`
+- `gold-task-suite-macos`: `V1.3.1`
+- `gold-task-suite-dsm`: `V1.3.1`
 
 Current Windows package set declared by `gold-task-suite-win`:
 
 - `gold-monitor`: `package 1.1.0`, `snapshot V1.1.0`
 - `gold-dashboard`: `package 1.0.0`, `snapshot V1.0.0`
-- `gold-investor-agent`: `package 4.2.0`, `snapshot V4.2.0`
+- `gold-investor-agent`: `package 4.3.1`, `snapshot V4.3.1`
 
 ## Runtime Environment
 

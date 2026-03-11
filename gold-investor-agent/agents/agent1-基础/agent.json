@@ -9,5 +9,6 @@
   "notes": [
     "当前默认 Agent。",
     "保留现有综合评分与手续费敏感型仓位控制逻辑。"
-  ]
+  ],
+  "autoRunEnabled": true
 }

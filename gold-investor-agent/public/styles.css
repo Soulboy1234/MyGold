@@ -107,6 +107,7 @@ body {
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
+  flex-wrap: wrap;
   width: 100%;
 }
 
@@ -127,21 +128,63 @@ body {
   line-height: 1.45;
 }
 
-.agent-choice-pnl {
+.agent-choice-finance {
   display: inline-flex;
   align-items: center;
   flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(59, 44, 29, 0.12);
+  background: rgba(255, 255, 255, 0.58);
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.agent-choice-pnl {
+  display: inline-flex;
+  align-items: center;
   margin: 0;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
-.agent-choice-pnl.up {
+.agent-choice-metrics {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.agent-choice-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.agent-choice-metric-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.agent-choice-metric-value {
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.agent-choice-finance.up .agent-choice-pnl {
   color: var(--sell);
 }
 
-.agent-choice-pnl.down {
+.agent-choice-finance.down .agent-choice-pnl {
   color: var(--buy);
 }
 

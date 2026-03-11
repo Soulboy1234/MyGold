@@ -22,14 +22,34 @@ export function renderAgentSelector(agents, selectedAgentNames, handlers) {
     const buttonText = agent.autoRunEnabled ? "停止" : "启动";
     const buttonAction = agent.autoRunEnabled ? "stop" : "start";
     const netPnl = Number.isFinite(agent.netTotalPnlCny) ? agent.netTotalPnlCny : null;
+    const selectorMetrics = [
+      ["持有现金", Number.isFinite(agent.cashCny) ? currency.format(agent.cashCny) : "--"],
+      ["黄金价值", Number.isFinite(agent.goldMarketValueCny) ? currency.format(agent.goldMarketValueCny) : "--"],
+      [
+        "成本金价",
+        Number.isFinite(agent.averageCostCnyPerGram)
+          ? `${currency.format(agent.averageCostCnyPerGram)} / 克`
+          : "--",
+      ],
+    ];
     return `
       <label class="agent-choice ${checked ? "is-selected" : ""}">
         <input type="checkbox" value="${escapeAttr(agent.folderName)}" ${checked ? "checked" : ""}>
         <span class="agent-choice-main">
           <span class="agent-choice-head">
             <strong>${escapeHtml(agent.displayName || agent.folderName)}</strong>
-            <span class="agent-choice-pnl ${netPnl === null ? "" : netPnl >= 0 ? "up" : "down"}">
-              ${escapeHtml(netPnl === null ? "总净盈亏 --" : `总净盈亏 ${formatSignedCurrency(netPnl)}`)}
+            <span class="agent-choice-finance ${netPnl === null ? "" : netPnl >= 0 ? "up" : "down"}">
+              <span class="agent-choice-pnl">
+                ${escapeHtml(netPnl === null ? "总净盈亏 --" : `总净盈亏 ${formatSignedCurrency(netPnl)}`)}
+              </span>
+              <span class="agent-choice-metrics">
+                ${selectorMetrics.map(([label, value]) => `
+                  <span class="agent-choice-metric">
+                    <span class="agent-choice-metric-label">${escapeHtml(label)}</span>
+                    <span class="agent-choice-metric-value">${escapeHtml(value)}</span>
+                  </span>
+                `).join("")}
+              </span>
             </span>
           </span>
           <span class="agent-choice-role">${escapeHtml(agent.role || "未填写角色说明")}</span>

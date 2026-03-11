@@ -1,0 +1,22 @@
+{
+  "_agentName": "agent3-长线选手",
+  "_strategyVersion": "v3.1.0",
+  "_description": "长线选手自动策略参数。修改后会同时影响历史回测与实时决策。",
+  "initialCapital": 100000,
+  "sellFeePerGram": 4,
+  "minTradeCny": 8000,
+  "rebalanceBufferRatio": 0.14,
+  "minNetTrimPnlCny": 180,
+  "minNetTrimPnlPerGram": 3.2,
+  "minHoursBeforeNormalTrim": 30,
+  "targetRatioCautious": 0.05,
+  "targetRatioProbe": 0.14,
+  "targetRatioBalanced": 0.24,
+  "targetRatioStrong": 0.34,
+  "scoreExitThreshold": 20,
+  "scoreProbeThreshold": 64,
+  "scoreBalancedThreshold": 76,
+  "scoreStrongThreshold": 88,
+  "longTrendExitPct": 0.965,
+  "dashboardLookbackDays": 365
+}

@@ -23,6 +23,11 @@ const APP_STATE = {
   refreshInFlight: false,
   actionInFlight: false,
   appVersion: null,
+  security: {
+    bindMode: "local",
+    writeToken: null,
+    requiresSameOrigin: false,
+  },
   defaultAgent: null,
   agents: [],
   selectedAgentNames: [],
@@ -74,6 +79,7 @@ async function postManualTrade(agentName, request) {
     cache: "no-store",
     headers: {
       "content-type": "application/json",
+      ...buildWriteHeaders(),
     },
     body: JSON.stringify(request),
   });
@@ -97,6 +103,7 @@ async function postPendingOrder(agentName, request) {
     cache: "no-store",
     headers: {
       "content-type": "application/json",
+      ...buildWriteHeaders(),
     },
     body: JSON.stringify(request),
   });
@@ -111,6 +118,7 @@ async function deletePendingOrder(agentName, orderId) {
   const response = await fetch(`/api/agents/pending-order?agent=${encodeURIComponent(agentName)}&id=${encodeURIComponent(orderId)}`, {
     method: "DELETE",
     cache: "no-store",
+    headers: buildWriteHeaders(),
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok || payload?.ok === false) {
@@ -123,6 +131,7 @@ async function postAgentAction(action, agentName) {
   const response = await fetch(`/api/agents/${action}?agent=${encodeURIComponent(agentName)}`, {
     method: "POST",
     cache: "no-store",
+    headers: buildWriteHeaders(),
   });
   if (!response.ok) throw new Error(`Failed to ${action} ${agentName} (${response.status})`);
   return response.json();
@@ -130,6 +139,11 @@ async function postAgentAction(action, agentName) {
 
 function setAgentRegistry(registry, { useStoredSelection = false } = {}) {
   APP_STATE.appVersion = registry.appVersion || null;
+  APP_STATE.security = {
+    bindMode: registry.security?.bindMode || "local",
+    writeToken: registry.security?.writeToken || null,
+    requiresSameOrigin: Boolean(registry.security?.requiresSameOrigin),
+  };
   APP_STATE.defaultAgent = registry.defaultAgent || null;
   APP_STATE.agents = Array.isArray(registry.agents) ? registry.agents : [];
   syncAppVersionBadge();
@@ -617,4 +631,12 @@ function syncAppVersionBadge() {
   }
   badge.hidden = false;
   badge.textContent = `v${APP_STATE.appVersion}`;
+}
+
+function buildWriteHeaders() {
+  const headers = {};
+  if (APP_STATE.security?.writeToken) {
+    headers["x-gold-investor-write-token"] = APP_STATE.security.writeToken;
+  }
+  return headers;
 }

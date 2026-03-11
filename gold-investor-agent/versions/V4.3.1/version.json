@@ -1,0 +1,8 @@
+{
+  "version": "V4.3.1",
+  "updatedAt": "2026-03-12 11:10:00 +08:00",
+  "basePath": "../..",
+  "snapshotPath": null,
+  "archivePath": null,
+  "note": "Hardened dashboard mutation protection for all non-local bind modes, revalidated agent state consistency, and synchronized package metadata."
+}

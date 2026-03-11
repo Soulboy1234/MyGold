@@ -46,9 +46,12 @@ pids
 *.seed
 *.pid.lock
 gold-investor-agent/agents/backups/
+gold-investor-agent/tmp/
 gold-investor-agent/versions/**/archive/
 gold-investor-agent/versions/**/snapshot/**/backups/
 gold-task-suite-win/install-state.json
+gold-task-suite-linux/state/install-state.json
+gold-task-suite-macos/state/install-state.json
 
 # Local databases and SQLite sidecar files
 *.db

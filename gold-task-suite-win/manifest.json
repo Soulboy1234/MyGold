@@ -1,7 +1,7 @@
 {
   "suiteName": "gold-task-suite-win",
-  "suiteVersion": "1.2.1",
-  "generatedAt": "2026-03-11T07:35:00+08:00",
+  "suiteVersion": "1.3.1",
+  "generatedAt": "2026-03-12T11:10:00+08:00",
   "workspaceLayout": {
     "goldMonitor": "../gold-monitor",
     "goldDashboard": "../gold-dashboard",
@@ -43,8 +43,8 @@
     {
       "name": "黄金投资Agent",
       "directory": "../gold-investor-agent",
-      "packageVersion": "4.2.0",
-      "snapshotVersion": "V4.2.0",
+      "packageVersion": "4.3.1",
+      "snapshotVersion": "V4.3.1",
       "entrypoints": [
         "src/agent.mjs",
         "src/daemon.mjs",
