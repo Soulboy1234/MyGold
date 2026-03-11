@@ -1,4 +1,4 @@
-# MyGold
+﻿# MyGold
 
 MyGold is a packaged gold investing workspace built around three coordinated projects:
 
@@ -193,4 +193,5 @@ In short:
 
 ## License
 
-This repository currently uses the MIT License. See [LICENSE](LICENSE).
+This repository currently uses the GNU GPL v3.0 License. See [LICENSE](LICENSE).
+
