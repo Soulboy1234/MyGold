@@ -16,7 +16,8 @@ This repository is prepared for GitHub sharing. Runtime outputs, local state, da
 |- gold-monitor
 |- gold-dashboard
 |- gold-investor-agent
-`- gold-task-suite
+|- gold-task-suite
+`- gold-task-suite-macos
 ```
 
 Key files:
@@ -27,6 +28,10 @@ Key files:
 - `gold-task-suite/start-all.cmd`: start all services
 - `gold-task-suite/stop-all.cmd`: stop all services
 - `gold-task-suite/open-all-panels.cmd`: open all dashboards
+- `gold-task-suite-macos/install.sh`: install environment for macOS
+- `gold-task-suite-macos/install-and-run.sh`: install and start on macOS
+- `gold-task-suite-macos/start-all.sh`: start all services on macOS
+- `gold-task-suite-macos/stop-all.sh`: stop all services on macOS
 
 ## Managed Projects
 
@@ -71,6 +76,44 @@ Open all panels:
 cd .\gold-task-suite
 .\open-all-panels.cmd
 ```
+
+## macOS Usage
+
+The Windows task suite remains the primary packaged launcher. For macOS, use the separate shell-based shortcut folder:
+
+```bash
+cd ./gold-task-suite-macos
+chmod +x ./*.sh ./lib/common.sh
+./install-and-run.sh
+```
+
+If you only want to install dependencies first:
+
+```bash
+cd ./gold-task-suite-macos
+./install.sh
+```
+
+If you only want to start services:
+
+```bash
+cd ./gold-task-suite-macos
+./start-all.sh
+```
+
+If you want to stop all services started by the macOS suite:
+
+```bash
+cd ./gold-task-suite-macos
+./stop-all.sh
+```
+
+Notes:
+
+- macOS requires Node.js `22+`
+- the macOS suite uses `nohup` and pid files instead of PowerShell
+- Windows-only auto-start features are not ported to macOS
+- runtime logs are written to `gold-task-suite-macos/logs/`
 
 ## Version Control Policy
 
