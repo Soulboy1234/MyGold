@@ -1,0 +1,73 @@
+# Node / package manager
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Logs
+*.log
+
+# Runtime state and generated outputs
+**/out/
+**/state/
+gold-investor-agent/agents/backups/
+gold-investor-agent/versions/**/archive/
+gold-investor-agent/versions/**/snapshot/**/backups/
+gold-task-suite/install-state.json
+
+# Local databases and SQLite sidecar files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Generated local data caches
+gold-dashboard/data/
+
+# Keep only version documentation in versions/
+!gold-dashboard/versions/
+gold-dashboard/versions/**
+!gold-dashboard/versions/**/
+!gold-dashboard/versions/README*
+!gold-dashboard/versions/V*/README*
+!gold-dashboard/versions/V*/CHANGELOG*
+!gold-dashboard/versions/V*/version.json
+
+!gold-monitor/versions/
+gold-monitor/versions/**
+!gold-monitor/versions/**/
+!gold-monitor/versions/README*
+!gold-monitor/versions/V*/README*
+!gold-monitor/versions/V*/CHANGELOG*
+!gold-monitor/versions/V*/version.json
+
+!gold-investor-agent/versions/
+gold-investor-agent/versions/**
+!gold-investor-agent/versions/**/
+!gold-investor-agent/versions/README*
+!gold-investor-agent/versions/V*/README*
+!gold-investor-agent/versions/V*/CHANGELOG*
+!gold-investor-agent/versions/V*/version.json
+
+# Python cache if any helper scripts appear later
+__pycache__/
+*.pyc

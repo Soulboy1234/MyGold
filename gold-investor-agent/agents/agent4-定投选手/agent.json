@@ -1,0 +1,15 @@
+{
+  "id": "agent4-dca-player",
+  "folderName": "agent4-定投选手",
+  "displayName": "Agent4-定投选手",
+  "role": "每天 15:00 定投 1000 元的黄金虚拟投资 Agent",
+  "entry": "agent.mjs",
+  "outputDir": "out",
+  "strategyVersion": "v1.0.0",
+  "autoRunEnabled": true,
+  "notes": [
+    "以 Agent1 当前资产和历史记录为模板复制生成。",
+    "从复制时点开始切换为每日 15:00 定投 1000 元的固定节奏策略。",
+    "当持仓盈利充足且价格过热时会低频止盈，长期趋势转弱时会防守减仓。"
+  ]
+}

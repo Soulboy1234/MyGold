@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>黄金追踪可视化面板</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Gold Monitor Dashboard</p>
+          <h1>黄金追踪实时面板 <span class="version-tag">V1.0.0</span></h1>
+          <p class="subtitle" id="hero-subtitle">从历史资料延续到当前监控输出，统一在一张面板里查看长周期与实时变化。</p>
+        </div>
+        <div class="status-box">
+          <div class="status-line">
+            <span>最新刷新</span>
+            <strong id="generated-at">-</strong>
+          </div>
+          <div class="status-line">
+            <span>最新数据</span>
+            <strong id="latest-time">-</strong>
+          </div>
+          <div class="status-line">
+            <span>面板状态</span>
+            <strong id="panel-status">加载中</strong>
+          </div>
+          <div class="status-line">
+            <span>黄金追踪状态</span>
+            <strong id="monitor-status">加载中</strong>
+          </div>
+        </div>
+      </header>
+
+      <section class="kpi-grid" id="kpi-grid"></section>
+
+      <section class="chart-grid">
+        <article class="panel panel-wide">
+          <div class="panel-top">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">长周期价格</p>
+                <h2><span id="price-title-term" class="glossary-term" data-term-title="XAU/USD" data-term-description="国际现货黄金兑美元价格。XAU 表示黄金，USD 表示美元。它是黄金行情最核心的美元计价基准，决定全球黄金价格的主方向。">XAU/USD</span> 与人民币金价</h2>
+              </div>
+              <p id="price-range" class="panel-meta">-</p>
+            </div>
+            <div class="chart-toolbar" data-chart="price-chart"></div>
+          </div>
+          <div class="chart-wrap"><svg id="price-chart" class="chart"></svg></div>
+          <div class="legend">
+            <span><i class="dot amber"></i><span class="glossary-term" data-term-title="XAU/USD" data-term-description="国际现货黄金兑美元价格。全球黄金交易里最常用的主报价，反映黄金本身的强弱。">XAU/USD</span></span>
+            <span><i class="dot cyan"></i>人民币价格</span>
+          </div>
+        </article>
+
+        <article class="panel panel-side">
+          <div class="panel-header">
+            <div>
+              <p class="panel-label">建议与状态</p>
+              <h2>最新结论</h2>
+            </div>
+          </div>
+          <div class="advice-block">
+            <p><strong>短线判断：</strong><span id="direction-text">-</span></p>
+            <p><strong>高频建议：</strong><span id="hf-advice">-</span></p>
+            <p><strong>日频建议：</strong><span id="daily-advice">-</span></p>
+            <p><strong>最新消息：</strong><span id="message-text">-</span></p>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-top">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">汇率</p>
+                <h2><span id="fx-title-term" class="glossary-term" data-term-title="USD/CNY" data-term-description="美元兑人民币汇率。它把国际金价换算成人民币金价，是国内观察黄金价格时必须结合的变量。">USD/CNY</span></h2>
+              </div>
+              <p id="fx-range" class="panel-meta">-</p>
+            </div>
+            <div class="chart-toolbar" data-chart="fx-chart"></div>
+          </div>
+          <div class="chart-wrap"><svg id="fx-chart" class="chart"></svg></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-top">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">期货与美元代理</p>
+                <h2><span id="macro-title-term" class="glossary-term" data-term-title="GC / UUP" data-term-description="GC 代表 COMEX 黄金近月期货，UUP 是美元指数代理 ETF。两者放在一起，可以同时观察黄金期货强弱和美元压力。">GC</span> / <span class="glossary-term" data-term-title="UUP" data-term-description="Invesco DB US Dollar Index Bullish Fund，美元指数代理 ETF。它近似反映美元强弱，美元走强通常会压制黄金。">UUP</span></h2>
+              </div>
+              <p id="macro-range" class="panel-meta">-</p>
+            </div>
+            <div class="chart-toolbar" data-chart="macro-chart"></div>
+          </div>
+          <div class="chart-wrap"><svg id="macro-chart" class="chart"></svg></div>
+          <div class="legend">
+            <span><i class="dot red"></i><span class="glossary-term" data-term-title="GC近月期货" data-term-description="COMEX 黄金近月期货主力合约价格。它能帮助判断黄金衍生品市场的方向和成交热度。">GC近月</span></span>
+            <span><i class="dot blue"></i><span class="glossary-term" data-term-title="UUP" data-term-description="美元指数代理 ETF。观察它有助于判断美元对黄金的压制或支撑。">UUP</span></span>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-top">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">成交量</p>
+                <h2><span id="volume-title-term" class="glossary-term" data-term-title="GC 成交量" data-term-description="COMEX 黄金近月期货成交量，用来观察资金参与度、活跃度和行情是否有量能配合。">GC 成交量</span></h2>
+              </div>
+              <p id="volume-range" class="panel-meta">-</p>
+            </div>
+            <div class="chart-toolbar" data-chart="volume-chart"></div>
+          </div>
+          <div class="chart-wrap"><svg id="volume-chart" class="chart"></svg></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-top">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">日频背景</p>
+                <h2><span id="daily-gld-title-term" class="glossary-term" data-term-title="GLD" data-term-description="SPDR Gold Shares，全球最重要的黄金 ETF 之一。它能反映机构资金是否在配置黄金。">GLD</span></h2>
+              </div>
+              <p id="daily-gld-range" class="panel-meta">-</p>
+            </div>
+            <div class="chart-toolbar" data-chart="daily-gld-chart"></div>
+          </div>
+          <div class="chart-wrap"><svg id="daily-gld-chart" class="chart"></svg></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-top">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">日频背景</p>
+                <h2><span id="daily-real-title-term" class="glossary-term" data-term-title="美国10年实际利率" data-term-description="美国10年期实际利率，通常用来衡量持有无息资产黄金的机会成本。实际利率上升一般不利于黄金，下降则相对利好黄金。">美国10年实际利率</span></h2>
+              </div>
+              <p id="daily-real-range" class="panel-meta">-</p>
+            </div>
+            <div class="chart-toolbar" data-chart="daily-real-chart"></div>
+          </div>
+          <div class="chart-wrap"><svg id="daily-real-chart" class="chart"></svg></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-top">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">日频背景</p>
+                <h2><span id="daily-uup-title-term" class="glossary-term" data-term-title="UUP" data-term-description="美元指数代理 ETF，用来辅助判断美元强弱。美元与黄金常呈反向关系。">UUP</span></h2>
+              </div>
+              <p id="daily-uup-range" class="panel-meta">-</p>
+            </div>
+            <div class="chart-toolbar" data-chart="daily-uup-chart"></div>
+          </div>
+          <div class="chart-wrap"><svg id="daily-uup-chart" class="chart"></svg></div>
+        </article>
+      </section>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

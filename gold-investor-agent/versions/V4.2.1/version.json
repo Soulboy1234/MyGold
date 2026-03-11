@@ -1,0 +1,8 @@
+{
+  "version": "V4.2.1",
+  "updatedAt": "2026-03-11 07:55:00 +08:00",
+  "basePath": "D:\\codex\\gold-investor-agent",
+  "snapshotPath": "D:\\codex\\gold-investor-agent\\versions\\V4.2.1\\snapshot",
+  "archivePath": null,
+  "note": "Audited runtime and strategy execution, kept all agents passing validation, and fixed Agent5 pending orders so they can trigger from intra-window price touches instead of only the latest snapshot."
+}

@@ -1,0 +1,8 @@
+{
+  "version": "V4.1.0",
+  "updatedAt": "2026-03-10 21:39:08 +08:00",
+  "basePath": "D:\\codex\\gold-investor-agent",
+  "snapshotPath": "D:\\codex\\gold-investor-agent\\versions\\V4.1.0\\snapshot",
+  "archivePath": null,
+  "note": "Verified Agent5 manual and pending-order flows, removed the legacy root out directory, tightened managed output path resolution, and revalidated all live agents."
+}

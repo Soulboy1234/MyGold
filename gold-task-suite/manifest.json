@@ -1,0 +1,55 @@
+{
+  "suiteName": "Gold Task Suite",
+  "suiteVersion": "1.2.1",
+  "generatedAt": "2026-03-11T07:35:00+08:00",
+  "workspaceLayout": {
+    "goldMonitor": "../gold-monitor",
+    "goldDashboard": "../gold-dashboard",
+    "goldInvestorAgent": "../gold-investor-agent"
+  },
+  "runtime": {
+    "os": "Windows 10/11 x64",
+    "powershell": ">=5.1",
+    "node": {
+      "minimum": "22.0.0",
+      "recommended": "24.14.0"
+    },
+    "network": true
+  },
+  "ports": {
+    "goldDashboard": 3099,
+    "goldInvestorDashboard": 3080
+  },
+  "projects": [
+    {
+      "name": "黄金追踪",
+      "directory": "../gold-monitor",
+      "packageVersion": "1.1.0",
+      "snapshotVersion": "V1.1.0",
+      "entrypoints": [
+        "src/monitor.mjs",
+        "src/daemon.mjs"
+      ]
+    },
+    {
+      "name": "黄金追踪可视",
+      "directory": "../gold-dashboard",
+      "packageVersion": "1.0.0",
+      "snapshotVersion": "V1.0.0",
+      "entrypoints": [
+        "server.mjs"
+      ]
+    },
+    {
+      "name": "黄金投资Agent",
+      "directory": "../gold-investor-agent",
+      "packageVersion": "4.2.0",
+      "snapshotVersion": "V4.2.0",
+      "entrypoints": [
+        "src/agent.mjs",
+        "src/daemon.mjs",
+        "src/server.mjs"
+      ]
+    }
+  ]
+}

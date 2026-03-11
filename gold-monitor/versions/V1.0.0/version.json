@@ -1,0 +1,8 @@
+﻿{
+    "version":  "V1.0.0",
+    "createdAt":  "2026-03-09 22:16:31 +08:00",
+    "basePath":  "D:\\codex\\gold-monitor",
+    "snapshotPath":  "D:\\codex\\gold-monitor\\versions\\V1.0.0",
+    "daemonStatePath":  "D:\\codex\\gold-monitor\\state\\daemon.json",
+    "note":  "Refactor baseline snapshot before code cleanup."
+}

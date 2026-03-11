@@ -1,0 +1,8 @@
+{
+  "version": "V1.0.0",
+  "createdAt": "2026-03-09 23:01:26 +08:00",
+  "basePath": "D:\\codex\\gold-dashboard",
+  "snapshotPath": "D:\\codex\\gold-dashboard\\versions\\V1.0.0",
+  "serverEntryPath": "D:\\codex\\gold-dashboard\\server.mjs",
+  "note": "Dashboard V1.0.0 baseline snapshot with history, high-resolution data, realtime monitor integration, and independent start/stop scripts."
+}

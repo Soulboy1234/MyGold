@@ -1,0 +1,8 @@
+{
+  "version": "V4.0.0",
+  "updatedAt": "2026-03-10 20:15:00 +08:00",
+  "basePath": "D:\\codex\\gold-investor-agent",
+  "snapshotPath": "D:\\codex\\gold-investor-agent\\versions\\V4.0.0\\snapshot",
+  "archivePath": null,
+  "note": "Validate all agent portfolios, back up the pre-reset state, add shared maintenance tools, reset all agents to a fresh 100000 CNY baseline, and rerun strategy comparison."
+}

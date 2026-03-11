@@ -1,0 +1,17 @@
+{
+  "name": "gold-investor-agent",
+  "version": "4.2.2",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "run": "node src/agent.mjs",
+    "serve": "node src/server.mjs",
+    "validate": "node shared/tools/validate-agents.mjs",
+    "backup": "node shared/tools/backup-agent-states.mjs manual",
+    "reset": "node shared/tools/reset-agent-states.mjs 100000 4",
+    "run:all": "node shared/tools/run-all-agents-once.mjs"
+  }
+}

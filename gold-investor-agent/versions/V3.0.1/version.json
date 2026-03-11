@@ -1,0 +1,8 @@
+{
+  "version": "V3.0.1",
+  "updatedAt": "2026-03-10 16:28:46 +08:00",
+  "basePath": "D:\\codex\\gold-investor-agent",
+  "snapshotPath": "D:\\codex\\gold-investor-agent\\versions\\V3.0.1\\snapshot",
+  "archivePath": null,
+  "note": "Runtime entry alignment, trade-cost reconstruction hardening, chart interaction stability, and moving-average caching."
+}

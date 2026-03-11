@@ -1,0 +1,8 @@
+{
+  "version": "V4.1.1",
+  "updatedAt": "2026-03-10 22:12:30 +08:00",
+  "basePath": "D:\\codex\\gold-investor-agent",
+  "snapshotPath": "D:\\codex\\gold-investor-agent\\versions\\V4.1.1\\snapshot",
+  "archivePath": null,
+  "note": "Audited the live runtime, tightened agent directory discovery to require agent.json, switched dynamic import URL generation to Node's built-in pathToFileURL for safer non-ASCII paths, and revalidated all agents."
+}

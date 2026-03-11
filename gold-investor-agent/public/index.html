@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>黄金投资 Agent 面板</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="page">
+      <section class="page-head">
+        <div>
+          <p class="eyebrow">Gold Investor Agents</p>
+          <h1>虚拟黄金投资面板 <span id="app-version" class="page-version" hidden></span></h1>
+          <p class="subtitle">把每个 Agent 的持仓、金价、买卖记录和策略说明整合成独立面板，并支持同时选择多个 Agent 对比显示。</p>
+        </div>
+        <article class="selector-panel">
+          <div class="selector-head">
+            <div>
+              <p class="eyebrow">Agents</p>
+              <h2>Agent 选择</h2>
+            </div>
+            <p class="selector-note">可同时勾选多个 Agent 并排查看，也可以直接在这里启动或停止单个 Agent。</p>
+          </div>
+          <div id="agent-selector" class="agent-selector"></div>
+        </article>
+      </section>
+
+      <section id="agent-panels" class="agent-panels"></section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "version": "V2.2.0",
+  "updatedAt": "2026-03-10 10:55:00 +08:00",
+  "basePath": "D:\\codex\\gold-investor-agent",
+  "snapshotPath": "D:\\codex\\gold-investor-agent\\versions\\V2.2.0\\snapshot",
+  "archivePath": "D:\\codex\\gold-investor-agent\\versions\\V2.2.0\\archive",
+  "note": "Fee-aware composite strategy iteration, unified decision path, stricter calculation hygiene, and layered snapshot versioning."
+}

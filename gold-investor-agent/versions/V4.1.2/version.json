@@ -1,0 +1,8 @@
+{
+  "version": "V4.1.2",
+  "updatedAt": "2026-03-10 22:43:30 +08:00",
+  "basePath": "D:\\codex\\gold-investor-agent",
+  "snapshotPath": "D:\\codex\\gold-investor-agent\\versions\\V4.1.2\\snapshot",
+  "archivePath": null,
+  "note": "Removed the legacy empty root out directory through runtime hygiene, made the dashboard app version read dynamically from package.json, and revalidated all live agents."
+}

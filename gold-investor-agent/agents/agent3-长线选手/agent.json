@@ -1,0 +1,15 @@
+{
+  "id": "agent3-long-horizon",
+  "folderName": "agent3-长线选手",
+  "displayName": "Agent3-长线选手",
+  "role": "偏长线、低频调仓的黄金虚拟投资 Agent",
+  "entry": "agent.mjs",
+  "outputDir": "out",
+  "status": "ready",
+  "strategyVersion": "v3.0.0",
+  "autoRunEnabled": true,
+  "notes": [
+    "以 Agent1-基础 的当前持仓状态和历史记录为模板复制出分身。",
+    "当前策略更偏长线，降低调仓频率，优先回避手续费驱动下的短线来回操作。"
+  ]
+}

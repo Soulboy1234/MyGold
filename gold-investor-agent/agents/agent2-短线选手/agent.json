@@ -1,0 +1,15 @@
+{
+  "id": "agent2-short-swing",
+  "folderName": "agent2-短线选手",
+  "displayName": "Agent2-短线选手",
+  "role": "更主动、偏短线波段的黄金投资 Agent",
+  "entry": "agent.mjs",
+  "outputDir": "out",
+  "status": "ready",
+  "strategyVersion": "v3.2.0",
+  "autoRunEnabled": true,
+  "notes": [
+    "以 Agent1 的持仓状态和历史记录复制后独立分叉。",
+    "当前版本专注短线波段，同时显式约束手续费带来的低质量卖出。"
+  ]
+}

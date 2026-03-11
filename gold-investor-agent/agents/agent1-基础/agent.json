@@ -1,0 +1,13 @@
+{
+  "id": "agent1-basic",
+  "folderName": "agent1-基础",
+  "displayName": "Agent1-基础",
+  "role": "稳健基础版虚拟黄金投资 Agent",
+  "entry": "agent.mjs",
+  "outputDir": "out",
+  "strategyVersion": "v2.2.0",
+  "notes": [
+    "当前默认 Agent。",
+    "保留现有综合评分与手续费敏感型仓位控制逻辑。"
+  ]
+}
