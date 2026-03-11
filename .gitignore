@@ -48,7 +48,7 @@ pids
 gold-investor-agent/agents/backups/
 gold-investor-agent/versions/**/archive/
 gold-investor-agent/versions/**/snapshot/**/backups/
-gold-task-suite/install-state.json
+gold-task-suite-win/install-state.json
 
 # Local databases and SQLite sidecar files
 *.db

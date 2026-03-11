@@ -9,14 +9,14 @@ This workflow applies to:
 - `gold-monitor`
 - `gold-dashboard`
 - `gold-investor-agent`
-- `gold-task-suite`
+- `gold-task-suite-win`
 
 ## Rule of Thumb
 
 When you say "update version", the expected work is:
 
 1. update the child project to the latest version
-2. sync the version declaration inside `gold-task-suite`
+2. sync the version declaration inside `gold-task-suite-win`
 3. verify Git only includes code and documentation safe for upload
 4. commit and push
 
@@ -41,8 +41,8 @@ Do not upload full source snapshots under `versions/.../snapshot/`.
 
 Update the unified package metadata in:
 
-- `gold-task-suite/manifest.json`
-- `gold-task-suite/README.md` if version references appear there
+- `gold-task-suite-win/manifest.json`
+- `gold-task-suite-win/README.md` if version references appear there
 
 Sync at least:
 
@@ -67,7 +67,7 @@ Confirm these are not included:
 - `*.db`
 - `*.db-shm`
 - `*.db-wal`
-- `gold-task-suite/install-state.json`
+- `gold-task-suite-win/install-state.json`
 - `versions/.../snapshot/...`
 - backups
 

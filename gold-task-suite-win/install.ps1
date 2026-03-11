@@ -100,7 +100,7 @@ if ($InstallLegacyMonitorTask) {
 }
 
 $installState = [ordered]@{
-  suiteName = "Gold Task Suite"
+    suiteName = "gold-task-suite-win"
   installedAt = (Get-Date).ToString("o")
   workspaceRoot = $workspaceRoot
   nodeExe = $nodeExe

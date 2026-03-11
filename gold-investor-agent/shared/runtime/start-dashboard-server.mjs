@@ -19,8 +19,8 @@ import {
   resolveProjectRoot,
 } from "./resolve-agent.mjs";
 
-const HOST = "127.0.0.1";
-const PORT = 3080;
+const HOST = process.env.HOST || "0.0.0.0";
+const PORT = Number(process.env.PORT || 3080);
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",

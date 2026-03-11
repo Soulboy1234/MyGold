@@ -14,5 +14,5 @@ ensure_dependencies "${DASHBOARD_DIR}"
 ensure_dependencies "${AGENT_DIR}"
 write_install_state
 
-echo "macOS install completed."
+echo "Linux install completed."
 echo "State file: ${STATE_DIR}/install-state.json"

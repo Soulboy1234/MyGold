@@ -5,5 +5,4 @@ set -euo pipefail
 SUITE_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SUITE_DIR}/lib/common.sh"
 
-open "http://127.0.0.1:3099"
-open "http://127.0.0.1:3080"
+print_access_urls
