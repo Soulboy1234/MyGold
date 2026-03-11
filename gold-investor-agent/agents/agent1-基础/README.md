@@ -1,12 +1,14 @@
-# Agent1-基础
+# Agent1
 
-当前默认运行的虚拟黄金投资 Agent。
+Default baseline virtual gold trading agent.
 
-本目录存放：
-- `agent.mjs`：Agent1 的个体策略与执行逻辑入口
-- `agent.json`：Agent 元数据
-- `out/`：Agent1 独立输出数据
+Files in this folder:
 
-共享层不放在这里：
-- 公共面板资源在 `D:\\codex\\gold-investor-agent\\public`
-- 公共运行时在 `D:\\codex\\gold-investor-agent\\shared\\runtime`
+- `agent.mjs`: strategy logic
+- `agent.json`: metadata
+- `out/`: runtime outputs
+
+Shared project resources live outside this folder:
+
+- `..\..\public`
+- `..\..\shared\runtime`

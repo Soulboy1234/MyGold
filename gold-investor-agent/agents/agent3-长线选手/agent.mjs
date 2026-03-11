@@ -1000,7 +1000,7 @@ function runBacktest(rows, config) {
     buyAndHoldEquity: round2(buyAndHold),
     profitable: finalEquity > config.initialCapital,
     notes: [
-      "回测使用 D:/codex/gold-dashboard/data/history.db 里的 daily_history 数据。",
+      "Backtest uses the daily_history table from ../gold-dashboard/data/history.db.",
       "卖出估值始终按每克扣除 4 元手续费后的价格计算。",
       "v3.0.0 验证了这套长线低换手阈值在卖出手续费约束下的可行性。",
     ],

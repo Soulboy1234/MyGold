@@ -1,8 +1,8 @@
 {
   "version": "V3.0.0",
   "updatedAt": "2026-03-10 16:08:01 +08:00",
-  "basePath": "D:\\codex\\gold-investor-agent",
-  "snapshotPath": "D:\\codex\\gold-investor-agent\\versions\\V3.0.0\\snapshot",
+  "basePath": "../..",
+  "snapshotPath": "./snapshot",
   "archivePath": null,
   "note": "Multi-agent runtime stabilization, calculation audit, metadata-driven agent resolution, and runnable snapshot versioning."
 }

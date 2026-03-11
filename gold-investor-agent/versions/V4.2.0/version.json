@@ -1,8 +1,8 @@
 {
   "version": "V4.2.0",
   "updatedAt": "2026-03-11 07:35:00 +08:00",
-  "basePath": "D:\\codex\\gold-investor-agent",
-  "snapshotPath": "D:\\codex\\gold-investor-agent\\versions\\V4.2.0\\snapshot",
+  "basePath": "../..",
+  "snapshotPath": "./snapshot",
   "archivePath": null,
   "note": "Refined Agent1-3 so they trade more like profit-seeking humans: normal trims now require better net edge, Agent2 separates profit-taking from defensive selling, and Agent3 is materially more long-horizon than Agent1."
 }

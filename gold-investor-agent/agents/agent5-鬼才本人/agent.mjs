@@ -1618,7 +1618,7 @@ function runBacktest(rows, config) {
     buyAndHoldEquity: round2(buyAndHold),
     profitable: finalEquity > config.initialCapital,
     notes: [
-      "回测使用 D:/codex/gold-dashboard/data/history.db 里的 daily_history 数据。",
+      "Backtest uses the daily_history table from ../gold-dashboard/data/history.db.",
       "定投时点按每天 15:00 近似到当日价格，同时加入低频止盈和趋势防守减仓。",
       "卖出估值与交易结果都按每克 4 元手续费计算，用于验证定投加低频止盈的长期效果。",
     ],

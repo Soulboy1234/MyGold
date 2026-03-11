@@ -1,8 +1,8 @@
 {
   "version": "V3.1.0",
   "updatedAt": "2026-03-10 16:59:47 +08:00",
-  "basePath": "D:\\codex\\gold-investor-agent",
-  "snapshotPath": "D:\\codex\\gold-investor-agent\\versions\\V3.1.0\\snapshot",
+  "basePath": "../..",
+  "snapshotPath": "./snapshot",
   "archivePath": null,
   "note": "Runtime hardening for daemon interval validation, BOM-safe dashboard loading, path-safe static serving, and per-agent dashboard fault isolation."
 }

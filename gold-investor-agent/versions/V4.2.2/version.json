@@ -1,8 +1,8 @@
 {
   "version": "V4.2.2",
   "updatedAt": "2026-03-11 08:00:00 +08:00",
-  "basePath": "D:\\codex\\gold-investor-agent",
-  "snapshotPath": "D:\\codex\\gold-investor-agent\\versions\\V4.2.2\\snapshot",
+  "basePath": "../..",
+  "snapshotPath": "./snapshot",
   "archivePath": null,
   "note": "Restored Agent5 pending-order behavior to only react to the current snapshot price, matching the intended realistic missed-order model, and revalidated the live agents."
 }

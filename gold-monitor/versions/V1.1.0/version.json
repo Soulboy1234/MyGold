@@ -1,7 +1,7 @@
 ﻿{
     "version":  "V1.1.0",
     "updatedAt":  "2026-03-09 22:55:07 +08:00",
-    "basePath":  "D:\\codex\\gold-monitor",
-    "snapshotPath":  "D:\\codex\\gold-monitor\\versions\\V1.1.0",
+    "basePath":  "../..",
+    "snapshotPath":  ".",
     "note":  "Stability hardening, multi-source fallback expansion, source diagnostics, and history self-healing."
 }
