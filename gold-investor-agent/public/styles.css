@@ -351,6 +351,7 @@ h1 {
   background: var(--panel);
   backdrop-filter: blur(14px);
   box-shadow: var(--shadow);
+  justify-self: end;
 }
 
 .status-line {
@@ -1152,9 +1153,8 @@ h1 {
   color: var(--muted);
 }
 
-@media (orientation: portrait), (max-width: 1400px), (max-aspect-ratio: 11/10) {
-  .agent-hero,
-  .hero {
+@media (max-width: 1400px), (max-aspect-ratio: 11/10) {
+  .agent-hero {
     grid-template-columns: 1fr;
   }
 
@@ -1175,6 +1175,16 @@ h1 {
   .layout,
   .strategy-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (orientation: portrait), (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .status-box {
+    justify-self: stretch;
   }
 }
 
