@@ -22,7 +22,7 @@
 
 ## 直接可修改的策略文件
 
-- [strategy-config.json](/D:/codex/gold-investor-agent/agents/agent2-短线选手/strategy-config.json)
+- `strategy-config.json`
 
 ## 参数解释
 
@@ -143,4 +143,3 @@
    - `out/backtest-summary.json`
    - `out/virtual-trade.json`
    - `out/trade-log.json`
-

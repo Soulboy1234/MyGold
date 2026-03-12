@@ -22,7 +22,7 @@
   - 黄金 `0`
   - 挂单 `0`
   - 自动运行开启，但仅待命，不会自动交易
-- 根目录 `D:\codex\gold-investor-agent\out` 当前不存在，且在重新执行：
+- 根目录 `out` 当前不存在，且在重新执行：
   - `shared/tools/run-all-agents-once.mjs`
   - `shared/tools/validate-agents.mjs`
   后仍未重新出现。

@@ -5,14 +5,14 @@
 本次版本是对 `V3.0.0` 的稳定性与计算口径修订，重点不是新增功能，而是把当前多 Agent 结构下的入口、历史成本恢复和图表性能进一步收紧。
 
 1. 运行时入口修正
-- [src/agent.mjs](/D:/codex/gold-investor-agent/src/agent.mjs) 不再直接拼接默认 Agent 文件路径。
+- `src/agent.mjs` 不再直接拼接默认 Agent 文件路径。
 - 现在统一改为走共享运行时 `runAgentOnce(...)`，确保：
   - 默认入口和多 Agent 管理面板使用同一套 Agent 解析逻辑
   - 后续 Agent 自定义 `entry` 时，默认入口不会失效
 
 2. 交易成本恢复修正
-- [Agent1-基础/agent.mjs](/D:/codex/gold-investor-agent/Agents/Agent1-基础/agent.mjs)
-- [Agent2-短线选手/agent.mjs](/D:/codex/gold-investor-agent/Agents/Agent2-短线选手/agent.mjs)
+- `Agents/Agent1-基础/agent.mjs`
+- `Agents/Agent2-短线选手/agent.mjs`
 - 修正了历史交易恢复中的一个兼容性问题：
   - 当旧记录缺少 `remainingGoldGrams` 时
   - 卖出后的剩余投入成本可能被推得过低
@@ -22,7 +22,7 @@
   - 同时补写标准化后的 `remainingGoldGrams`
 
 3. 图表性能与稳定性
-- [dashboard-chart.js](/D:/codex/gold-investor-agent/public/dashboard-chart.js)
+- `public/dashboard-chart.js`
 - 优化点：
   - 时间点定位由线性扫描改为二分查找
   - 均线结果按当前序列做缓存，避免每次重绘都全量重算

@@ -15,7 +15,7 @@
 - 支持字段级合并，不再因为主源缺少成交量就直接保留空值。
 
 3. 来源诊断能力增强
-- 新增诊断文件 [source_diagnostics_latest.txt](D:\codex\gold-monitor\out\source_diagnostics_latest.txt)。
+- 新增诊断文件 `out/source_diagnostics_latest.txt`。
 - 每轮会记录 `XAU/USD`、`USD/CNY`、`GC近月`、`GLD`、`UUP/DXY代理`、`10年实际利率` 的实际命中来源。
 - 当某字段由后备源补全时，会在诊断信息中体现。
 
@@ -35,5 +35,5 @@
 
 7. 测试与验证
 - 测试覆盖扩大到东方财富期货/美股解析、多源合并、来源摘要判断等关键路径。
-- 当前测试脚本 [monitor.test.mjs](D:\codex\gold-monitor\test\monitor.test.mjs) 已通过 23 项断言。
+- 当前测试脚本 `test/monitor.test.mjs` 已通过 23 项断言。
 - 已做实盘抓取验证，当前版本可正常运行。

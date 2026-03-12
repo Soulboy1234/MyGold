@@ -17,31 +17,31 @@ This folder provides DSM-oriented wrapper scripts for Synology Task Scheduler. I
 - Install:
 
 ```bash
-cd /var/services/homes/soulboy/codex/MyGold/gold-task-suite-dsm && ./dsm-install.sh
+cd /path/to/MyGold/gold-task-suite-dsm && ./dsm-install.sh
 ```
 
 - Start:
 
 ```bash
-cd /var/services/homes/soulboy/codex/MyGold/gold-task-suite-dsm && ./dsm-start.sh
+cd /path/to/MyGold/gold-task-suite-dsm && ./dsm-start.sh
 ```
 
 - Stop:
 
 ```bash
-cd /var/services/homes/soulboy/codex/MyGold/gold-task-suite-dsm && ./dsm-stop.sh
+cd /path/to/MyGold/gold-task-suite-dsm && ./dsm-stop.sh
 ```
 
 - Restart:
 
 ```bash
-cd /var/services/homes/soulboy/codex/MyGold/gold-task-suite-dsm && ./dsm-restart.sh
+cd /path/to/MyGold/gold-task-suite-dsm && ./dsm-restart.sh
 ```
 
 - Status:
 
 ```bash
-cd /var/services/homes/soulboy/codex/MyGold/gold-task-suite-dsm && ./dsm-status.sh
+cd /path/to/MyGold/gold-task-suite-dsm && ./dsm-status.sh
 ```
 
 ## Notes
