@@ -1,7 +1,7 @@
 {
   "suiteName": "gold-task-suite-win",
-  "version": "V1.3.1",
-  "updatedAt": "2026-03-12 11:10:00 +08:00",
+  "version": "V1.3.4",
+  "updatedAt": "2026-03-12 16:35:00 +08:00",
   "basePath": "..",
   "manifestPath": "./manifest.json",
   "managedProjects": {
@@ -14,9 +14,9 @@
       "snapshotVersion": "V1.0.0"
     },
     "goldInvestorAgent": {
-      "packageVersion": "4.3.1",
-      "snapshotVersion": "V4.3.1"
+      "packageVersion": "4.3.4",
+      "snapshotVersion": "V4.3.4"
     }
   },
-  "note": "Unified Windows packaging version after dashboard mutation-guard hardening, layout verification refresh, and managed-project version sync."
+  "note": "Unified Windows packaging version after runtime stability hardening, dashboard UI cleanup, and managed-project version sync."
 }

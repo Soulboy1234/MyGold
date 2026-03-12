@@ -46,6 +46,7 @@ pids
 *.seed
 *.pid.lock
 gold-investor-agent/agents/backups/
+gold-investor-agent/lab/
 gold-investor-agent/tmp/
 gold-investor-agent/versions/**/archive/
 gold-investor-agent/versions/**/snapshot/**/backups/

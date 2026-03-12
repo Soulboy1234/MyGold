@@ -13,7 +13,7 @@ $requiredPaths = @(
   (Join-Path $workspaceRoot "gold-investor-agent\src\server.mjs"),
   (Join-Path $workspaceRoot "gold-dashboard\versions\V1.0.0"),
   (Join-Path $workspaceRoot "gold-monitor\versions\V1.1.0"),
-  (Join-Path $workspaceRoot "gold-investor-agent\versions\V4.3.1"),
+  (Join-Path $workspaceRoot "gold-investor-agent\versions\V4.3.4"),
   (Join-Path $suiteDir "manifest.json"),
   (Join-Path $suiteDir "install.cmd"),
   (Join-Path $suiteDir "install-autostart.ps1"),

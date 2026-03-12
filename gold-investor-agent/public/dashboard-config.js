@@ -17,18 +17,7 @@ export const MA_WINDOWS = [
   { key: "ma60", label: "MA60", color: "#d97706", days: 60 },
 ];
 
-export const META_CARD_DEFS = [
-  {
-    label: "最新更新时间",
-    describe: "来自黄金追踪任务的最新实时快照时间。",
-    value: (payload) => payload.latest?.checkedAtLocal || "-",
-  },
-  {
-    label: "最新动作",
-    describe: "Agent 对最新快照执行的动作；持有表示本次没有触发交易。",
-    value: (payload) => actionLabel(payload.summary?.latestAction),
-  },
-];
+export const META_CARD_DEFS = [];
 
 export const STAT_CARD_DEFS = [
   {

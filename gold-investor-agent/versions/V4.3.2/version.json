@@ -1,0 +1,8 @@
+{
+  "version": "V4.3.2",
+  "updatedAt": "2026-03-12 13:35:00 +08:00",
+  "basePath": "../..",
+  "snapshotPath": "./snapshot",
+  "archivePath": "./archive",
+  "note": "Improved runtime stability by executing agents in child processes, added stricter dashboard response security headers, and archived legacy tmp experiment outputs."
+}

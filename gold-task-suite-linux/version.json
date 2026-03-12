@@ -1,7 +1,7 @@
 {
   "suiteName": "gold-task-suite-linux",
-  "version": "V1.3.1",
-  "updatedAt": "2026-03-12 11:10:00 +08:00",
+  "version": "V1.3.4",
+  "updatedAt": "2026-03-12 16:35:00 +08:00",
   "basePath": "..",
   "managedProjects": {
     "goldMonitor": {
@@ -13,9 +13,9 @@
       "snapshotVersion": "V1.0.0"
     },
     "goldInvestorAgent": {
-      "packageVersion": "4.3.1",
-      "snapshotVersion": "V4.3.1"
+      "packageVersion": "4.3.4",
+      "snapshotVersion": "V4.3.4"
     }
   },
-  "note": "Unified Linux packaging version aligned with the latest managed project set and dashboard mutation-guard hardening."
+  "note": "Unified Linux packaging version aligned with the latest managed project set, runtime stability hardening, and dashboard UI cleanup."
 }

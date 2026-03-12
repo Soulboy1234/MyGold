@@ -1,6 +1,6 @@
 # Gold Investor Agent
 
-Current version: `V4.3.1`
+Current version: `V4.3.4`
 
 `gold-investor-agent` is the virtual gold investing project in this workspace.
 
@@ -59,6 +59,11 @@ Dashboard address:
 ## Output Policy
 
 Runtime outputs are written inside each agent's own `out` folder and are intentionally excluded from Git.
+
+## Temporary Artifacts
+
+- Historical strategy experiment outputs are archived under `.\versions\...\archive\` when they are no longer part of the live runtime.
+- The project root should not need a long-lived `.\tmp` directory during normal operation.
 
 ## Portability
 

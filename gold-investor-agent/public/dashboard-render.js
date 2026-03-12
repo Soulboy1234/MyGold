@@ -106,34 +106,37 @@ export function rerenderAllCharts(panelStates, tooltipApi) {
 
 function renderAgentShell(panel) {
   const agent = panel.agent || { folderName: panel.agentName, displayName: panel.agentName, role: "" };
-  const latestTime = panel.payload?.latest?.checkedAtLocal || (panel.missing ? "暂无数据" : "加载中");
-  const latestAction = panel.payload?.summary?.latestAction
-    ? actionLabel(panel.payload.summary.latestAction)
-    : panel.missing
-      ? "未生成"
-      : panel.error
-        ? "读取失败"
-        : "待加载";
-  const statusLabel = agent.autoRunEnabled ? "运行中" : "已停止";
+  const latestTime = panel.payload?.latest?.checkedAtLocal || (panel.missing ? "\u6682\u65e0\u6570\u636e" : "\u52a0\u8f7d\u4e2d");
+  const lastActionSummary = describeLastAction(panel);
+  const statusLabel = agent.autoRunEnabled ? "\u8fd0\u884c\u4e2d" : "\u5df2\u505c\u6b62";
 
   return `
     <section class="agent-board" data-agent-key="${panelKey(panel.agentName)}">
       <header class="agent-board-head">
-        <div>
+        <div class="agent-board-title">
           <p class="eyebrow">Agent Panel</p>
           <h2>${escapeHtml(agent.displayName || agent.folderName)}</h2>
-          <p class="agent-role">${escapeHtml(agent.role || "未填写角色说明")}</p>
+          <p class="agent-role">${escapeHtml(agent.role || "\u672a\u586b\u5199\u89d2\u8272\u8bf4\u660e")}</p>
         </div>
-        <div class="agent-board-tags">
-          <span class="agent-tag">${escapeHtml(statusLabel)}</span>
-          <span class="agent-tag">最新更新：${escapeHtml(latestTime)}</span>
-          <span class="agent-tag">最新动作：${escapeHtml(latestAction)}</span>
-        </div>
+        <aside class="agent-status-panel" aria-label="Agent \u72b6\u6001">
+          <div class="agent-status-row">
+            <span class="agent-status-label">\u72b6\u6001</span>
+            <strong class="agent-status-value">${escapeHtml(statusLabel)}</strong>
+          </div>
+          <div class="agent-status-row">
+            <span class="agent-status-label">\u6700\u65b0\u66f4\u65b0</span>
+            <strong class="agent-status-value">${escapeHtml(latestTime)}</strong>
+          </div>
+          <div class="agent-status-row">
+            <span class="agent-status-label">\u672b\u6b21\u64cd\u4f5c</span>
+            <strong class="agent-status-value">${escapeHtml(lastActionSummary)}</strong>
+          </div>
+        </aside>
       </header>
       ${panel.missing || !panel.payload ? renderEmptyAgentBody(panel) : `
         <section class="agent-hero">
           <article class="rule-summary agent-rule-summary"></article>
-          <div class="hero-meta agent-meta-cards"></div>
+          ${META_CARD_DEFS.length ? `<div class="hero-meta agent-meta-cards"></div>` : ""}
         </section>
         <section class="stats agent-stats"></section>
         <section class="layout agent-layout">
@@ -141,29 +144,29 @@ function renderAgentShell(panel) {
             <div class="panel-head">
               <div>
                 <p class="eyebrow">Domestic Gold</p>
-                <h3>人民币金价曲线</h3>
+                <h3>\u4eba\u6c11\u5e01\u91d1\u4ef7\u66f2\u7ebf</h3>
               </div>
               <div class="legend">
-                <span><i class="marker buy"></i>买入</span>
-                <span><i class="marker sell"></i>卖出</span>
+                <span><i class="marker buy"></i>\u4e70\u5165</span>
+                <span><i class="marker sell"></i>\u5356\u51fa</span>
                 <span><i class="marker ma5"></i>MA5</span>
                 <span><i class="marker ma10"></i>MA10</span>
                 <span><i class="marker ma20"></i>MA20</span>
                 <span><i class="marker ma60"></i>MA60</span>
-                <span><i class="marker cost"></i>持仓成本金价</span>
+                <span><i class="marker cost"></i>\u6301\u4ed3\u6210\u672c\u91d1\u4ef7</span>
               </div>
             </div>
             <div class="chart-toolbar"></div>
             <div class="chart-stage">
               <svg class="chart" preserveAspectRatio="xMidYMid meet"></svg>
-              <div class="chart-scroll-guard">单击解锁缩放</div>
+              <div class="chart-scroll-guard">\u5355\u51fb\u89e3\u9501\u7f29\u653e</div>
             </div>
           </article>
           <aside class="panel trade-panel">
             <div class="panel-head">
               <div>
                 <p class="eyebrow">Trades</p>
-                <h3>买卖记录</h3>
+                <h3>\u4e70\u5356\u8bb0\u5f55</h3>
               </div>
             </div>
             <div class="trade-list"></div>
@@ -173,10 +176,10 @@ function renderAgentShell(panel) {
           <div class="panel-head strategy-panel-head">
             <div>
               <p class="eyebrow">Strategy</p>
-              <h3>当前投资策略</h3>
+              <h3>\u5f53\u524d\u6295\u8d44\u7b56\u7565</h3>
             </div>
             <button type="button" class="strategy-toggle-btn" aria-expanded="${panel.strategyExpanded ? "true" : "false"}">
-              ${panel.strategyExpanded ? "收起" : "展开"}
+              ${panel.strategyExpanded ? "\u6536\u8d77" : "\u5c55\u5f00"}
             </button>
           </div>
           <div class="strategy-panel" ${panel.strategyExpanded ? "" : "hidden"}></div>
@@ -185,6 +188,20 @@ function renderAgentShell(panel) {
       `}
     </section>
   `;
+}
+
+function describeLastAction(panel) {
+  if (Array.isArray(panel.payload?.trades)) {
+    for (let index = panel.payload.trades.length - 1; index >= 0; index -= 1) {
+      const trade = panel.payload.trades[index];
+      if (!trade?.action || trade.action === "HOLD") continue;
+      const time = trade.checkedAtLocal || "\u65f6\u95f4\u672a\u77e5";
+      return `${actionLabel(trade.action)} · ${time}`;
+    }
+  }
+
+  if (panel.error) return "\u8bfb\u53d6\u5931\u8d25";
+  return "\u6682\u65e0\u64cd\u4f5c";
 }
 
 function renderManualTradePanel(agent, manualControls = {}) {
@@ -333,6 +350,15 @@ function renderPanelHeader(shell, payload) {
 function renderMetaCards(shell, payload) {
   const root = shell.querySelector(".agent-meta-cards");
   if (!root) return;
+  const hero = root.closest(".agent-hero");
+  if (!META_CARD_DEFS.length) {
+    root.innerHTML = "";
+    root.hidden = true;
+    hero?.classList.add("is-single-column");
+    return;
+  }
+  root.hidden = false;
+  hero?.classList.remove("is-single-column");
   root.innerHTML = META_CARD_DEFS
     .map((item) => renderCard("meta-card", item.label, item.describe, item.value(payload)))
     .join("");

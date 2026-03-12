@@ -1,0 +1,8 @@
+{
+  "version": "V4.3.4",
+  "updatedAt": "2026-03-12 16:35:00 +08:00",
+  "basePath": "../..",
+  "snapshotPath": null,
+  "archivePath": null,
+  "note": "Stabilized child-process agent execution, cleaned conflicting dashboard hero layout rules, improved timestamp summarization, and synchronized platform package versions."
+}

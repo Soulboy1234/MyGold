@@ -32,6 +32,17 @@ const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
 };
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  "font-src 'self' data:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
 
 export function startDashboardServer() {
   const projectRoot = resolveProjectRoot();
@@ -41,11 +52,10 @@ export function startDashboardServer() {
   const server = createServer(async (req, res) => {
     try {
       if (!isRequestAllowed(req, SERVER_BINDING.mode)) {
-        res.writeHead(403, {
+        res.writeHead(403, buildHeaders({
           "content-type": "text/plain; charset=utf-8",
           "cache-control": "no-store",
-          "x-content-type-options": "nosniff",
-        });
+        }));
         res.end("Forbidden");
         return;
       }
@@ -119,11 +129,10 @@ export function startDashboardServer() {
       const filePath = resolvePublicPath(publicDir, url.pathname);
       return respondFile(res, filePath);
     } catch (error) {
-      res.writeHead(error.statusCode || 500, {
+      res.writeHead(error.statusCode || 500, buildHeaders({
         "content-type": "text/plain; charset=utf-8",
         "cache-control": "no-store",
-        "x-content-type-options": "nosniff",
-      });
+      }));
       res.end(`Server error: ${error.message}`);
     }
   });
@@ -189,22 +198,27 @@ function resolvePublicPath(publicDir, pathname) {
 
 async function respondFile(res, filePath) {
   if (!filePath) {
-    res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+    res.writeHead(404, buildHeaders({ "content-type": "text/plain; charset=utf-8" }));
     res.end("Not found");
     return;
   }
   try {
     const body = await readFile(filePath);
     const ext = path.extname(filePath);
-    res.writeHead(200, { "content-type": MIME_TYPES[ext] || "application/octet-stream" });
+    const shouldDisableCache = [".html", ".js", ".css"].includes(ext);
+    res.writeHead(200, buildHeaders({
+      "content-type": MIME_TYPES[ext] || "application/octet-stream",
+      "cache-control": shouldDisableCache ? "no-store" : "public, max-age=300",
+    }));
     res.end(body);
   } catch {
-    res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+    res.writeHead(404, buildHeaders({ "content-type": "text/plain; charset=utf-8" }));
     res.end("Not found");
   }
 }
 
 async function readJsonBody(req) {
+  ensureJsonContentType(req);
   const chunks = [];
   let totalBytes = 0;
   for await (const chunk of req) {
@@ -225,13 +239,36 @@ async function readJsonBody(req) {
   }
 }
 
+function ensureJsonContentType(req) {
+  const contentType = String(req.headers["content-type"] || "").trim().toLowerCase();
+  if (!contentType) {
+    const error = new Error("Missing content type; expected application/json");
+    error.statusCode = 415;
+    throw error;
+  }
+  if (contentType.startsWith("application/json")) return;
+  const error = new Error("Unsupported content type; expected application/json");
+  error.statusCode = 415;
+  throw error;
+}
+
 function respondJson(res, payload, status = 200) {
-  res.writeHead(status, {
+  res.writeHead(status, buildHeaders({
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
-    "x-content-type-options": "nosniff",
-  });
+  }));
   res.end(JSON.stringify(payload));
+}
+
+function buildHeaders(overrides = {}) {
+  return {
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "same-origin",
+    "cross-origin-resource-policy": "same-origin",
+    "content-security-policy": CONTENT_SECURITY_POLICY,
+    ...overrides,
+  };
 }
 
 function cleanText(value) {

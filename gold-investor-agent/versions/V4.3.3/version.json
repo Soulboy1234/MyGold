@@ -1,0 +1,8 @@
+{
+  "version": "V4.3.3",
+  "updatedAt": "2026-03-12 14:10:00 +08:00",
+  "basePath": "../..",
+  "snapshotPath": "./snapshot",
+  "archivePath": "./archive",
+  "note": "Added agent child-process execution timeouts, tightened dashboard mutation request validation to JSON bodies, and revalidated the live runtime after the recent UI and security updates."
+}

@@ -271,6 +271,7 @@ function render() {
     onActionClick: onAgentActionClicked,
   });
   const panels = getSelectedPanels();
+  updateHeaderTimestamps(panels);
   renderAgentPanels(panels);
   bindPanelInteractions();
   enhanceManualTradePanels();
@@ -633,6 +634,55 @@ function syncAppVersionBadge() {
   badge.textContent = `v${APP_STATE.appVersion}`;
 }
 
+function updateHeaderTimestamps(panels) {
+  const latestDataNode = document.getElementById("latest-data-time");
+  const latestAgentNode = document.getElementById("latest-agent-time");
+  if (!latestDataNode || !latestAgentNode) return;
+
+  const latestDataTime = pickLatestTimestamp(
+    panels.map((panel) => panel.payload?.latest?.checkedAtLocal)
+  );
+  const latestAgentTime = pickLatestTimestamp(
+    panels.map((panel) => panel.payload?.summary?.checkedAtLocal || panel.payload?.latest?.checkedAtLocal)
+  );
+
+  latestDataNode.textContent = formatHeaderTimestamp(latestDataTime);
+  latestAgentNode.textContent = formatHeaderTimestamp(latestAgentTime);
+}
+
+function formatHeaderTimestamp(value) {
+  if (!value) return "--";
+  const date = parseTime(value);
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return String(value).replaceAll("-", "/");
+  }
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mi = String(date.getMinutes()).padStart(2, "0");
+  const ss = String(date.getSeconds()).padStart(2, "0");
+  return `${yyyy}/${mm}/${dd} ${hh}:${mi}:${ss}`;
+}
+
+function pickLatestTimestamp(values) {
+  let latestValue = null;
+  let latestTime = Number.NEGATIVE_INFINITY;
+  for (const value of values) {
+    if (!value) continue;
+    const date = parseTime(value);
+    const time = date instanceof Date ? date.getTime() : Number.NaN;
+    if (Number.isNaN(time)) {
+      if (latestValue === null) latestValue = value;
+      continue;
+    }
+    if (time >= latestTime) {
+      latestTime = time;
+      latestValue = value;
+    }
+  }
+  return latestValue;
+}
 function buildWriteHeaders() {
   const headers = {};
   if (APP_STATE.security?.writeToken) {

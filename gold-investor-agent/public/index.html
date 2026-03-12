@@ -8,12 +8,25 @@
   </head>
   <body>
     <main class="page">
-      <section class="page-head">
+      <header class="hero">
         <div>
           <p class="eyebrow">Gold Investor Agents</p>
           <h1>虚拟黄金投资面板 <span id="app-version" class="page-version" hidden></span></h1>
-          <p class="subtitle">把每个 Agent 的持仓、金价、买卖记录和策略说明整合成独立面板，并支持同时选择多个 Agent 对比显示。</p>
+          <p class="subtitle">本面板仅供研究、测试与娱乐展示使用，不构成任何投资建议或交易承诺。</p>
         </div>
+        <div class="status-box">
+          <div class="status-line">
+            <span>当前数据时间</span>
+            <strong id="latest-data-time">--</strong>
+          </div>
+          <div class="status-line">
+            <span>最新 Agent 监测</span>
+            <strong id="latest-agent-time">--</strong>
+          </div>
+        </div>
+      </header>
+
+      <section class="selector-section">
         <article class="selector-panel">
           <div class="selector-head">
             <div>

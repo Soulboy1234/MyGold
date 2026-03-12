@@ -1,9 +1,9 @@
+import { spawn } from "node:child_process";
 import { access, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   DEFAULT_AGENT_NAME,
   normalizeAgentName,
-  pathToFileUrl,
   resolveAgentDir,
   resolveManagedOutputPath,
   resolveAgentMetadataPath,
@@ -12,6 +12,9 @@ import {
 } from "./resolve-agent.mjs";
 
 const DEFAULT_SELL_FEE_PER_GRAM = 4;
+const AGENT_RUN_TIMEOUT_MS = 5 * 60 * 1000;
+const AGENT_FORCE_KILL_GRACE_MS = 5 * 1000;
+const MAX_CAPTURED_OUTPUT_LENGTH = 16 * 1024;
 
 export async function listAgentMetas() {
   await cleanupLegacyRootOutDir();
@@ -88,7 +91,7 @@ export async function runAgentOnce(agentName) {
   await cleanupLegacyRootOutDir();
   const meta = await loadAgentMeta(normalizeAgentName(agentName));
   const agentFile = path.join(resolveAgentDir(meta.folderName), meta.entry);
-  await import(`${pathToFileUrl(agentFile)}?ts=${Date.now()}`);
+  await runAgentProcess(agentFile, meta.folderName);
 }
 
 export async function submitManualTrade(agentName, request) {
@@ -330,6 +333,67 @@ async function cleanupLegacyRootOutDir() {
     }
   } catch {
   }
+}
+
+async function runAgentProcess(agentFile, folderName) {
+  await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [agentFile], {
+      cwd: path.dirname(agentFile),
+      env: process.env,
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let timedOut = false;
+    let stdout = "";
+    let stderr = "";
+    let forceKillHandle = null;
+    const timeoutHandle = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGTERM");
+      forceKillHandle = setTimeout(() => {
+        child.kill("SIGKILL");
+      }, AGENT_FORCE_KILL_GRACE_MS);
+    }, AGENT_RUN_TIMEOUT_MS);
+
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk) => {
+      stdout = appendCapturedOutput(stdout, chunk);
+    });
+    child.stderr?.on("data", (chunk) => {
+      stderr = appendCapturedOutput(stderr, chunk);
+    });
+    child.on("error", (error) => {
+      clearTimeout(timeoutHandle);
+      clearTimeout(forceKillHandle);
+      reject(error);
+    });
+    child.on("close", (code, signal) => {
+      clearTimeout(timeoutHandle);
+      clearTimeout(forceKillHandle);
+      if (timedOut) {
+        reject(new Error(`Agent run timed out after ${Math.round(AGENT_RUN_TIMEOUT_MS / 1000)}s: ${folderName}`));
+        return;
+      }
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      const details = [stderr.trim(), stdout.trim()].find(Boolean);
+      const suffix = details ? `\n${details}` : signal ? ` (signal: ${signal})` : "";
+      reject(new Error(`Agent run failed: ${folderName}${suffix}`));
+    });
+  });
+}
+
+function appendCapturedOutput(current, chunk) {
+  const next = `${current}${chunk}`;
+  if (next.length <= MAX_CAPTURED_OUTPUT_LENGTH) {
+    return next;
+  }
+  return next.slice(-MAX_CAPTURED_OUTPUT_LENGTH);
 }
 
 async function readJsonIfExists(filePath, fallbackValue) {
