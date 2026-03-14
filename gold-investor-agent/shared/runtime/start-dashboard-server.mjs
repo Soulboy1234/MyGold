@@ -9,6 +9,7 @@ import {
   loadAgentMeta,
   loadComparablePortfolioSnapshot,
   loadSharedMarketSnapshot,
+  resetAgentState,
   runAgentOnce,
   setAgentAutoRun,
   submitManualTrade,
@@ -93,6 +94,15 @@ export function startDashboardServer() {
         if (!agentName) return respondJson(res, { error: "Missing agent name" }, 400);
         const meta = await setAgentAutoRun(agentName, false);
         return respondJson(res, { ok: true, agent: meta });
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/agents/reset") {
+        ensureMutationAuthorized(req);
+        const agentName = url.searchParams.get("agent");
+        if (!agentName) return respondJson(res, { error: "Missing agent name" }, 400);
+        const meta = await resetAgentState(agentName, { initialCapital: 100000 });
+        const payload = await loadDashboardPayload(meta.folderName);
+        return respondJson(res, { ok: true, agent: meta, payload });
       }
 
       if (req.method === "POST" && url.pathname === "/api/agents/manual-trade") {
@@ -305,7 +315,7 @@ function resolveServerBinding() {
   if (explicitHost) {
     return {
       host: explicitHost,
-      mode: "custom",
+      mode: isLoopbackHost(explicitHost) ? "local" : "custom",
     };
   }
 
@@ -320,6 +330,11 @@ function resolveServerBinding() {
     host: "127.0.0.1",
     mode: "local",
   };
+}
+
+function isLoopbackHost(host) {
+  const normalized = String(host || "").trim().toLowerCase();
+  return normalized === "127.0.0.1" || normalized === "::1" || normalized === "localhost";
 }
 
 function isSynologyEnvironment() {
@@ -346,11 +361,7 @@ function isRequestAllowed(req, mode) {
     return isLoopbackAddress(remoteAddress);
   }
 
-  if (mode === "nas") {
-    return isPrivateOrLoopbackAddress(remoteAddress);
-  }
-
-  return true;
+  return isPrivateOrLoopbackAddress(remoteAddress);
 }
 
 function ensureMutationAuthorized(req) {

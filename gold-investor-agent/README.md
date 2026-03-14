@@ -1,6 +1,6 @@
 # Gold Investor Agent
 
-Current version: `V4.3.4`
+Current version: `V4.4.0`
 
 `gold-investor-agent` is the virtual gold investing project in this workspace.
 
@@ -51,7 +51,7 @@ Dashboard address:
 ## Dashboard Bind Mode
 
 - On local desktop environments, the dashboard server defaults to `127.0.0.1` so it is only accessible from the same machine.
-- On Synology DSM / NAS environments, the dashboard server automatically switches to `0.0.0.0` so other devices in the same LAN can open it without extra host configuration.
+- On Synology DSM / NAS environments, the dashboard server automatically switches to `0.0.0.0` so other devices in the same private LAN can open it.
 - Even in NAS mode, the built-in access guard only allows loopback and private-LAN client addresses by default, which reduces accidental public exposure risk.
 - State-changing APIs such as manual trade, pending orders, and start/stop agent also require a runtime write token; any non-local bind mode additionally requires same-origin browser requests from the dashboard page itself.
 - If you need a custom bind address, you can still override it explicitly with the `HOST` environment variable.

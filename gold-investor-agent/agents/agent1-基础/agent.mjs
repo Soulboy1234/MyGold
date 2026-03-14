@@ -500,7 +500,10 @@ function buildRebalanceOrder({ latest, portfolio, currentPrice, target, recentTr
     });
   }
 
-  if (shouldDelayNormalTrim(target.decisionKind, latest, recentTrade, config)) {
+  const grossPnlCny = grams * (currentPrice - portfolio.averageCostCnyPerGram);
+  const realizedPnlCny = grossPnlCny - grams * config.sellFeePerGram;
+
+  if (shouldDelayNormalTrim(target.decisionKind, latest, recentTrade, realizedPnlCny, grams, config)) {
     return buildHoldOrder({
       latest,
       reason: `${target.reason} 但距离上一次买入还太近，暂时不做普通调仓减仓。`,
@@ -510,9 +513,6 @@ function buildRebalanceOrder({ latest, portfolio, currentPrice, target, recentTr
       backtest,
     });
   }
-
-  const grossPnlCny = grams * (currentPrice - portfolio.averageCostCnyPerGram);
-  const realizedPnlCny = grossPnlCny - grams * config.sellFeePerGram;
   if (shouldSkipLowEdgeSell(target.decisionKind, realizedPnlCny, grams, config)) {
     return buildHoldOrder({
       latest,
@@ -737,12 +737,23 @@ function shouldSkipLowEdgeSell(decisionKind, realizedPnlCny, grams, config) {
     || realizedPnlCny / grams < config.minNetTrimPnlPerGram;
 }
 
-function shouldDelayNormalTrim(decisionKind, latest, recentTrade, config) {
+function shouldDelayNormalTrim(decisionKind, latest, recentTrade, realizedPnlCny, grams, config) {
   if (isProtectiveDecisionKind(decisionKind) || !recentTrade || !isBuyAction(recentTrade.action)) {
+    return false;
+  }
+  if (canBypassTrimCooldown(realizedPnlCny, grams, config)) {
     return false;
   }
   const hoursSinceTrade = diffHours(recentTrade.checkedAt, latest.checkedAt);
   return Number.isFinite(hoursSinceTrade) && hoursSinceTrade < config.minHoursBeforeNormalTrim;
+}
+
+function canBypassTrimCooldown(realizedPnlCny, grams, config) {
+  if (!Number.isFinite(realizedPnlCny) || !Number.isFinite(grams) || grams <= 0) {
+    return false;
+  }
+  return realizedPnlCny >= config.cooldownBypassNetTrimPnlCny
+    && realizedPnlCny / grams >= config.cooldownBypassNetTrimPnlPerGram;
 }
 
 function isProtectiveDecisionKind(decisionKind) {

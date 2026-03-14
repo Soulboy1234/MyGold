@@ -32,6 +32,8 @@ export function renderAgentSelector(agents, selectedAgentNames, handlers) {
           : "--",
       ],
     ];
+    const lastTradeTime = formatSelectorTradeTime(agent.lastTradeAtLocal);
+    const lastTradeLabel = formatTradeActionLabel(agent.lastTradeAction);
     return `
       <label class="agent-choice ${checked ? "is-selected" : ""}">
         <input type="checkbox" value="${escapeAttr(agent.folderName)}" ${checked ? "checked" : ""}>
@@ -52,13 +54,21 @@ export function renderAgentSelector(agents, selectedAgentNames, handlers) {
               </span>
             </span>
           </span>
-          <span class="agent-choice-role">${escapeHtml(agent.role || "未填写角色说明")}</span>
+          <span class="agent-choice-role-row">
+            <span class="agent-choice-role">${escapeHtml(agent.role || "未填写角色说明")}</span>
+            ${lastTradeTime ? `<span class="agent-choice-trade-tag">末次买卖：${escapeHtml(lastTradeLabel)} · ${escapeHtml(lastTradeTime)}</span>` : ""}
+          </span>
         </span>
         <span class="agent-choice-side">
           <span class="agent-choice-status ${agent.autoRunEnabled ? "ready" : "pending"}">${statusText}</span>
-          <button type="button" class="agent-toggle-btn" data-agent-action="${buttonAction}" data-agent-name="${escapeAttr(agent.folderName)}">
-            ${buttonText}
-          </button>
+          <span class="agent-choice-actions">
+            <button type="button" class="agent-toggle-btn" data-agent-action="${buttonAction}" data-agent-name="${escapeAttr(agent.folderName)}">
+              ${buttonText}
+            </button>
+            <button type="button" class="agent-toggle-btn danger" data-agent-action="reset" data-agent-name="${escapeAttr(agent.folderName)}">
+              重置资产
+            </button>
+          </span>
         </span>
       </label>
     `;
@@ -66,6 +76,19 @@ export function renderAgentSelector(agents, selectedAgentNames, handlers) {
 
   root.onchange = handlers.onSelectionChange;
   root.onclick = handlers.onActionClick;
+}
+
+function formatSelectorTradeTime(value) {
+  if (!value) return "";
+  return String(value).replaceAll("-", "/");
+}
+
+function formatTradeActionLabel(action) {
+  const normalized = String(action || "").toUpperCase();
+  if (!normalized) return "暂无";
+  if (normalized.startsWith("BUY")) return "买入";
+  if (normalized.startsWith("SELL")) return "卖出";
+  return actionLabel(normalized);
 }
 
 export function renderAgentPanels(panelStates) {

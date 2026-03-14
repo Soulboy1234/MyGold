@@ -120,9 +120,29 @@ body {
 
 .agent-choice-role {
   display: block;
-  margin-top: 4px;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.agent-choice-role-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.agent-choice-trade-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(59, 44, 29, 0.14);
+  background: rgba(255, 255, 255, 0.68);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .agent-choice-finance {
@@ -191,6 +211,13 @@ body {
   justify-items: end;
 }
 
+.agent-choice-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
 .agent-choice-status {
   display: inline-flex;
   align-items: center;
@@ -215,6 +242,17 @@ body {
 .agent-toggle-btn:hover {
   border-color: rgba(170, 109, 11, 0.45);
   background: rgba(255, 249, 238, 0.92);
+}
+
+.agent-toggle-btn.danger {
+  border-color: rgba(180, 35, 24, 0.22);
+  color: #7a1d16;
+  background: rgba(255, 245, 243, 0.92);
+}
+
+.agent-toggle-btn.danger:hover {
+  border-color: rgba(180, 35, 24, 0.42);
+  background: rgba(255, 238, 234, 0.96);
 }
 
 .agent-toggle-btn:disabled {
@@ -344,7 +382,8 @@ h1 {
 }
 
 .status-box {
-  min-width: 280px;
+  min-width: 360px;
+  width: min(460px, 100%);
   padding: 18px 20px;
   border-radius: 18px;
   border: 1px solid var(--line);
@@ -355,9 +394,10 @@ h1 {
 }
 
 .status-line {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 10px;
+  align-items: baseline;
   color: var(--muted);
 }
 
@@ -367,6 +407,8 @@ h1 {
 
 .status-line strong {
   color: var(--ink);
+  white-space: nowrap;
+  text-align: right;
 }
 
 .page-version {
@@ -1185,6 +1227,8 @@ h1 {
 
   .status-box {
     justify-self: stretch;
+    min-width: 0;
+    width: 100%;
   }
 }
 

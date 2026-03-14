@@ -1,6 +1,6 @@
 # Gold Dashboard
 
-Current version: `V1.0.0`
+Current version: `V1.1.0`
 
 `gold-dashboard` provides the local visualization panel for the gold monitoring workspace.
 
@@ -21,6 +21,12 @@ Or use the helper script:
 Default address:
 
 - `http://127.0.0.1:3099`
+
+Bind behavior:
+
+- On desktop environments, the dashboard defaults to `127.0.0.1`.
+- On Synology DSM / NAS environments, it switches to `0.0.0.0` so other devices on the same private LAN can open it.
+- In non-local bind modes, requests are limited to loopback and private-LAN client addresses.
 
 ## Data Sources
 

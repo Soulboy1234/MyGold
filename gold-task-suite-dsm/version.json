@@ -1,7 +1,7 @@
 {
   "suiteName": "gold-task-suite-dsm",
-  "version": "V1.3.4",
-  "updatedAt": "2026-03-12 16:35:00 +08:00",
+  "version": "V1.4.0",
+  "updatedAt": "2026-03-14 15:20:00 +08:00",
   "basePath": "..",
   "dependsOn": "../gold-task-suite-linux",
   "managedProjects": {
@@ -10,13 +10,13 @@
       "snapshotVersion": "V1.1.0"
     },
     "goldDashboard": {
-      "packageVersion": "1.0.0",
-      "snapshotVersion": "V1.0.0"
+      "packageVersion": "1.1.0",
+      "snapshotVersion": "V1.1.0"
     },
     "goldInvestorAgent": {
-      "packageVersion": "4.3.4",
-      "snapshotVersion": "V4.3.4"
+      "packageVersion": "4.4.0",
+      "snapshotVersion": "V4.4.0"
     }
   },
-  "note": "Unified DSM wrapper version aligned with the Linux suite and the latest managed project set."
+  "note": "Unified DSM wrapper version aligned with the Linux suite, dashboard network hardening, and formal reset controls."
 }

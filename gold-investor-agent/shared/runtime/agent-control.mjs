@@ -10,6 +10,13 @@ import {
   resolveAgentsDir,
   resolveProjectRoot,
 } from "./resolve-agent.mjs";
+import {
+  buildBackupLabel,
+  buildInitialPortfolio,
+  copyDirectory,
+  readJson as readToolJson,
+  resetAgentOutputs,
+} from "../tools/agent-state-utils.mjs";
 
 const DEFAULT_SELL_FEE_PER_GRAM = 4;
 const AGENT_RUN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -46,13 +53,16 @@ export async function loadAgentMeta(folderName, options = {}) {
   const entry = raw.entry || "agent.mjs";
   const dashboardPath = resolveManagedOutputPath(agentDir, outputDir, "dashboard-data.json");
   const portfolioPath = resolveManagedOutputPath(agentDir, outputDir, "portfolio.json");
+  const tradesPath = resolveManagedOutputPath(agentDir, outputDir, "trade-log.json");
   const hasDashboard = await exists(dashboardPath);
   const autoRunEnabled = typeof raw.autoRunEnabled === "boolean"
     ? raw.autoRunEnabled
     : canonicalFolderName === DEFAULT_AGENT_NAME;
   const portfolio = await readJsonIfExists(portfolioPath, null);
+  const trades = await readJsonIfExists(tradesPath, []);
   const market = options.market || await loadSharedMarketSnapshot();
   const snapshot = buildAgentSnapshot(portfolio, market);
+  const lastExecutedTrade = findLastExecutedTrade(trades);
 
   return {
     id: raw.id || canonicalFolderName,
@@ -66,6 +76,8 @@ export async function loadAgentMeta(folderName, options = {}) {
     hasDashboard,
     autoRunEnabled,
     manualTradingEnabled: Boolean(raw.manualTradingEnabled),
+    lastTradeAtLocal: lastExecutedTrade?.checkedAtLocal || lastExecutedTrade?.time || null,
+    lastTradeAction: lastExecutedTrade?.action || null,
     ...snapshot,
   };
 }
@@ -84,6 +96,20 @@ export async function setAgentAutoRun(folderName, enabled) {
     autoRunEnabled: enabled,
   };
   await writeFile(agentJsonPath, JSON.stringify(next, null, 2) + "\n", "utf8");
+  return loadAgentMeta(canonicalFolderName);
+}
+
+export async function resetAgentState(folderName, options = {}) {
+  await cleanupLegacyRootOutDir();
+  const canonicalFolderName = normalizeAgentName(folderName);
+  const meta = await loadAgentMeta(canonicalFolderName);
+  const agentDir = resolveAgentDir(canonicalFolderName);
+  const initialCapital = Number.isFinite(options.initialCapital) ? options.initialCapital : 100000;
+  const sellFeePerGram = Number.isFinite(options.sellFeePerGram) ? options.sellFeePerGram : DEFAULT_SELL_FEE_PER_GRAM;
+
+  await createResetSafetyBackup(meta);
+  await resetAgentOutputs(agentDir, { initialCapital, sellFeePerGram });
+  await refreshDashboardDataAfterReset(meta, { initialCapital, sellFeePerGram });
   return loadAgentMeta(canonicalFolderName);
 }
 
@@ -259,6 +285,19 @@ function inferSellFeePerGram(portfolio) {
   return Number.isFinite(inferred) && inferred >= 0 ? inferred : DEFAULT_SELL_FEE_PER_GRAM;
 }
 
+function findLastExecutedTrade(trades) {
+  if (!Array.isArray(trades)) return null;
+  for (let index = trades.length - 1; index >= 0; index -= 1) {
+    const trade = trades[index];
+    if (!trade || typeof trade !== "object") continue;
+    const action = String(trade.action || "").toUpperCase();
+    if (action.startsWith("BUY") || action.startsWith("SELL")) {
+      return trade;
+    }
+  }
+  return null;
+}
+
 function normalizeManualTradeRequest(request) {
   const action = String(request?.action || "").toUpperCase();
   const mode = request?.mode === "grams" ? "grams" : request?.mode === "amountCny" ? "amountCny" : null;
@@ -333,6 +372,67 @@ async function cleanupLegacyRootOutDir() {
     }
   } catch {
   }
+}
+
+async function refreshDashboardDataAfterReset(meta, options = {}) {
+  const agentDir = resolveAgentDir(meta.folderName);
+  const dashboardPath = resolveManagedOutputPath(agentDir, meta.outputDir, "dashboard-data.json");
+  const existingDashboard = await readToolJson(dashboardPath, {});
+  const market = await loadSharedMarketSnapshot();
+  const initialPortfolio = buildInitialPortfolio(options.initialCapital);
+  const summary = buildAgentSnapshot(initialPortfolio, market);
+
+  const nextDashboard = {
+    ...existingDashboard,
+    generatedAt: new Date().toISOString(),
+    latest: market
+      ? {
+          ...(existingDashboard?.latest || {}),
+          ...market,
+        }
+      : (existingDashboard?.latest || null),
+    summary: {
+      ...(existingDashboard?.summary || {}),
+      ...summary,
+      latestAction: "HOLD",
+      totalFeesCny: 0,
+      realizedPnlCny: 0,
+      unrealizedPnlCny: 0,
+      totalPnlCny: 0,
+      netTotalPnlCny: summary.netTotalPnlCny ?? 0,
+      valuationCheckedAtLocal: market?.checkedAtLocal || null,
+    },
+    latestAction: "HOLD",
+    trades: [],
+    tradeMarkers: [],
+    decisionHistory: [],
+    manualControls: {
+      ...(existingDashboard?.manualControls || {}),
+      pendingOrders: [],
+    },
+    chart: existingDashboard?.chart
+      ? {
+          ...existingDashboard.chart,
+          tradeMarkers: [],
+          averageCostLine: null,
+        }
+      : existingDashboard?.chart,
+  };
+
+  await writeFile(dashboardPath, JSON.stringify(nextDashboard, null, 2) + "\n", "utf8");
+}
+
+async function createResetSafetyBackup(meta) {
+  const agentDir = resolveAgentDir(meta.folderName);
+  const sourceOutDir = resolveManagedOutputPath(agentDir, meta.outputDir);
+  if (!await exists(sourceOutDir)) {
+    return;
+  }
+
+  const backupRoot = path.join(resolveAgentsDir(), "backups");
+  const backupLabel = buildBackupLabel(new Date(), `${meta.folderName}-pre-reset`);
+  const targetDir = path.join(backupRoot, backupLabel, "out");
+  await copyDirectory(sourceOutDir, targetDir);
 }
 
 async function runAgentProcess(agentFile, folderName) {

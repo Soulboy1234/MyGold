@@ -1,6 +1,6 @@
 # Gold Task Suite for Linux
 
-Current package version: `V1.3.4`
+Current package version: `V1.4.0`
 
 This folder provides a Linux-friendly shortcut layer for the existing workspace. It is suitable for general Linux hosts and Synology NAS systems with `Node.js 22+` already installed.
 
@@ -17,7 +17,7 @@ This folder provides a Linux-friendly shortcut layer for the existing workspace.
 - `install-and-run.sh`: runs install, then starts all services
 - `start-all.sh`: starts monitor, dashboard, agent daemon, and agent panel
 - `stop-all.sh`: stops all services started by this Linux suite
-- `open-all-panels.sh`: prints local and LAN access URLs
+- `open-all-panels.sh`: prints local access URLs, and on NAS also prints LAN URLs
 - `logs/`: runtime logs written by the shell launchers
 - `run/`: pid files used for stop/restart behavior
 - `state/install-state.json`: local install record
@@ -56,7 +56,7 @@ cd gold-task-suite-linux
 - Dashboard: `http://127.0.0.1:3099`
 - Investor panel: `http://127.0.0.1:3080`
 
-When running on a NAS, `open-all-panels.sh` prints LAN URLs so you can open the panels from another device on the same network.
+When running on a Synology NAS, both the dashboard and the investor panel automatically bind to `0.0.0.0` and should be opened from another device on the same private LAN.
 
 ## Synology Suggestion
 

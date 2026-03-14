@@ -147,19 +147,41 @@ print_access_urls() {
   echo "Investor panel:"
   echo "  http://127.0.0.1:3080"
 
-  for ip in ${ip_list}; do
-    if [[ "${ip}" == 127.* ]]; then
-      continue
-    fi
-    echo "Dashboard (LAN):"
-    echo "  http://${ip}:3099"
-    echo "Investor panel (LAN):"
-    echo "  http://${ip}:3080"
-  done
+  if [[ -n "${ip_list}" ]] && [[ -f "/etc/synoinfo.conf" || -f "/etc.defaults/VERSION" || "${SYNOLOGY_DSM:-}" == "1" || "${SYNO_DSM:-}" == "1" ]]; then
+    for ip in ${ip_list}; do
+      if [[ "${ip}" == 127.* ]]; then
+        continue
+      fi
+      if ! is_private_or_loopback_ip "${ip}"; then
+        continue
+      fi
+      echo "Dashboard (LAN):"
+      echo "  http://${ip}:3099"
+      echo "Investor panel (LAN):"
+      echo "  http://${ip}:3080"
+    done
 
-  echo "Hostname:"
-  echo "  http://${host_name}:3099"
-  echo "  http://${host_name}:3080"
+    echo "Hostname:"
+    echo "  http://${host_name}:3099"
+    echo "  http://${host_name}:3080"
+  fi
+}
+
+is_private_or_loopback_ip() {
+  local ip="$1"
+
+  [[ "${ip}" =~ ^10\. ]] && return 0
+  [[ "${ip}" =~ ^192\.168\. ]] && return 0
+  [[ "${ip}" =~ ^169\.254\. ]] && return 0
+  [[ "${ip}" =~ ^127\. ]] && return 0
+  [[ "${ip}" =~ ^(fc|fd|fe80:) ]] && return 0
+
+  if [[ "${ip}" =~ ^172\.([0-9]{1,3})\. ]]; then
+    local second_octet="${BASH_REMATCH[1]}"
+    [[ "${second_octet}" -ge 16 && "${second_octet}" -le 31 ]] && return 0
+  fi
+
+  return 1
 }
 
 write_install_state() {

@@ -1,7 +1,7 @@
 {
   "suiteName": "gold-task-suite-macos",
-  "version": "V1.3.4",
-  "updatedAt": "2026-03-12 16:35:00 +08:00",
+  "version": "V1.4.0",
+  "updatedAt": "2026-03-14 15:20:00 +08:00",
   "basePath": "..",
   "managedProjects": {
     "goldMonitor": {
@@ -9,13 +9,13 @@
       "snapshotVersion": "V1.1.0"
     },
     "goldDashboard": {
-      "packageVersion": "1.0.0",
-      "snapshotVersion": "V1.0.0"
+      "packageVersion": "1.1.0",
+      "snapshotVersion": "V1.1.0"
     },
     "goldInvestorAgent": {
-      "packageVersion": "4.3.4",
-      "snapshotVersion": "V4.3.4"
+      "packageVersion": "4.4.0",
+      "snapshotVersion": "V4.4.0"
     }
   },
-  "note": "Unified macOS packaging version aligned with the latest managed project set, runtime stability hardening, and dashboard UI cleanup."
+  "note": "Unified macOS packaging version aligned with the latest managed project set, dashboard network hardening, and formal reset controls."
 }

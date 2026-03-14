@@ -305,6 +305,12 @@ async function onAgentActionClicked(event) {
   if (!button || APP_STATE.actionInFlight) return;
   event.preventDefault();
   event.stopPropagation();
+  if (button.dataset.agentAction === "reset") {
+    const confirmed = window.confirm(
+      `确认将 ${button.dataset.agentName} 重置为 100000 元现金吗？这会清空当前持仓、交易记录和待执行挂单。`
+    );
+    if (!confirmed) return;
+  }
   APP_STATE.actionInFlight = true;
   button.disabled = true;
   try {

@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
@@ -17,7 +18,8 @@ const HF_STATE_FILE = path.join(MONITOR_DIR, "state", "high_frequency_history.js
 const DAILY_STATE_FILE = path.join(MONITOR_DIR, "state", "daily_context_history.jsonl");
 const HIGH_FREQUENCY_FILE = path.join(MONITOR_DIR, "out", "high_frequency.csv");
 const DAILY_FILE = path.join(MONITOR_DIR, "out", "daily_context.csv");
-const HOST = process.env.HOST || "0.0.0.0";
+const SERVER_BINDING = resolveServerBinding();
+const HOST = SERVER_BINDING.host;
 const PORT = Number(process.env.PORT || 3099);
 const POLL_INTERVAL_MS = 5000;
 const LIVE_STALE_AFTER_MS = 20 * 60 * 1000;
@@ -30,21 +32,62 @@ const MIME_TYPES = {
   ".json": "application/json; charset=utf-8",
 };
 
+function resolveServerBinding() {
+  const explicitHost = String(process.env.HOST || "").trim();
+  if (explicitHost) {
+    return {
+      host: explicitHost,
+      mode: isLoopbackHost(explicitHost) ? "local" : "custom",
+    };
+  }
+  return {
+    host: isSynologyEnvironment() ? "0.0.0.0" : "127.0.0.1",
+    mode: isSynologyEnvironment() ? "nas" : "local",
+  };
+}
+
+function isSynologyEnvironment() {
+  if (String(process.env.SYNOLOGY_DSM || "").trim() === "1") return true;
+  if (String(process.env.SYNO_DSM || "").trim() === "1") return true;
+  if (process.platform !== "linux") return false;
+  if (existsSync("/etc/synoinfo.conf")) return true;
+  if (existsSync("/etc.defaults/VERSION")) {
+    try {
+      const versionText = readFileSync("/etc.defaults/VERSION", "utf8");
+      return /productversion|buildnumber/i.test(versionText);
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+function isLoopbackHost(host) {
+  const normalized = String(host || "").trim().toLowerCase();
+  return normalized === "127.0.0.1" || normalized === "::1" || normalized === "localhost";
+}
+
 export function startServer() {
   return createServer(async (req, res) => {
     const requestUrl = new URL(req.url || "/", `http://${req.headers.host || `${HOST}:${PORT}`}`);
     try {
+      if (!isRequestAllowed(req, SERVER_BINDING.mode)) {
+        res.writeHead(403, buildHeaders({ "Content-Type": "text/plain; charset=utf-8" }));
+        res.end("Forbidden");
+        return;
+      }
+
       if (requestUrl.pathname === "/api/dashboard") {
         await serveDashboard(res);
         return;
       }
       await serveStatic(requestUrl.pathname, res);
     } catch (error) {
-      res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      res.writeHead(500, buildHeaders({ "Content-Type": "application/json; charset=utf-8" }));
       res.end(JSON.stringify({ error: error.message }));
     }
   }).listen(PORT, HOST, () => {
-    console.log(`Gold dashboard running at http://${HOST}:${PORT}`);
+    console.log(`Gold dashboard running at http://${HOST}:${PORT} [mode=${SERVER_BINDING.mode}]`);
   });
 }
 
@@ -181,6 +224,7 @@ async function serveDashboard(res) {
     };
   }
   res.writeHead(200, {
+    ...buildHeaders(),
     "Cache-Control": "no-store",
     "Content-Type": "application/json; charset=utf-8",
   });
@@ -191,18 +235,18 @@ async function serveStatic(requestPath, res) {
   const relativePath = requestPath === "/" ? "index.html" : path.normalize(decodeURIComponent(requestPath)).replace(/^([/\\])+/, "");
   const absolutePath = path.resolve(PUBLIC_DIR, relativePath);
   if (!absolutePath.startsWith(PUBLIC_DIR)) {
-    res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
+    res.writeHead(403, buildHeaders({ "Content-Type": "text/plain; charset=utf-8" }));
     res.end("Forbidden");
     return;
   }
   try {
     const file = await readFile(absolutePath);
     const extension = path.extname(absolutePath);
-    res.writeHead(200, { "Content-Type": MIME_TYPES[extension] || "application/octet-stream" });
+    res.writeHead(200, buildHeaders({ "Content-Type": MIME_TYPES[extension] || "application/octet-stream" }));
     res.end(file);
   } catch (error) {
     if (error && error.code === "ENOENT") {
-      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+      res.writeHead(404, buildHeaders({ "Content-Type": "text/plain; charset=utf-8" }));
       res.end("Not found");
       return;
     }
@@ -483,4 +527,52 @@ function isProcessAlive(pid) {
   } catch {
     return false;
   }
+}
+
+function buildHeaders(overrides = {}) {
+  return {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    ...overrides,
+  };
+}
+
+function isRequestAllowed(req, mode) {
+  const remoteAddress = normalizeRemoteAddress(req.socket?.remoteAddress || "");
+  if (!remoteAddress) return false;
+
+  if (mode === "local") {
+    return isLoopbackAddress(remoteAddress);
+  }
+
+  return isPrivateOrLoopbackAddress(remoteAddress);
+}
+
+function normalizeRemoteAddress(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("::ffff:")) {
+    return trimmed.slice(7);
+  }
+  return trimmed;
+}
+
+function isLoopbackAddress(address) {
+  return address === "127.0.0.1" || address === "::1";
+}
+
+function isPrivateOrLoopbackAddress(address) {
+  if (isLoopbackAddress(address)) return true;
+  if (/^10\./.test(address)) return true;
+  if (/^192\.168\./.test(address)) return true;
+  const match172 = address.match(/^172\.(\d{1,3})\./);
+  if (match172) {
+    const second = Number(match172[1]);
+    if (second >= 16 && second <= 31) return true;
+  }
+  if (/^169\.254\./.test(address)) return true;
+  if (/^(fc|fd)/i.test(address)) return true;
+  if (/^fe80:/i.test(address)) return true;
+  return false;
 }

@@ -633,7 +633,10 @@ function buildRebalanceOrder({ latest, portfolio, currentPrice, target, recentTr
     });
   }
 
-  if (shouldDelayProfitTakeTrim(target.decisionKind, latest, recentTrade, config)) {
+  const grossPnlCny = grams * (currentPrice - portfolio.averageCostCnyPerGram);
+  const realizedPnlCny = grossPnlCny - grams * config.sellFeePerGram;
+
+  if (shouldDelayProfitTakeTrim(target.decisionKind, latest, recentTrade, realizedPnlCny, grams, config)) {
     return buildHoldOrder({
       latest,
       reason: `${target.reason} 但距离上一次买入还太近，短线止盈先不急着落袋。`,
@@ -643,9 +646,6 @@ function buildRebalanceOrder({ latest, portfolio, currentPrice, target, recentTr
       backtest,
     });
   }
-
-  const grossPnlCny = grams * (currentPrice - portfolio.averageCostCnyPerGram);
-  const realizedPnlCny = grossPnlCny - grams * config.sellFeePerGram;
   if (shouldSkipLowEdgeSell(target.decisionKind, realizedPnlCny, grams, config)) {
     return buildHoldOrder({
       latest,
@@ -1016,12 +1016,23 @@ function shouldSkipLowEdgeSell(decisionKind, realizedPnlCny, grams, config) {
     || realizedPnlCny / grams < config.minNetTrimPnlPerGram;
 }
 
-function shouldDelayProfitTakeTrim(decisionKind, latest, recentTrade, config) {
+function shouldDelayProfitTakeTrim(decisionKind, latest, recentTrade, realizedPnlCny, grams, config) {
   if (!isProfitTakeDecisionKind(decisionKind) || !recentTrade || !isBuyAction(recentTrade.action)) {
+    return false;
+  }
+  if (canBypassProfitTakeCooldown(decisionKind, realizedPnlCny, grams, config)) {
     return false;
   }
   const hoursSinceTrade = diffHours(recentTrade.checkedAt, latest.checkedAt);
   return Number.isFinite(hoursSinceTrade) && hoursSinceTrade < config.minHoursBeforeProfitTakeTrim;
+}
+
+function canBypassProfitTakeCooldown(decisionKind, realizedPnlCny, grams, config) {
+  if (!isProfitTakeDecisionKind(decisionKind) || !Number.isFinite(realizedPnlCny) || !Number.isFinite(grams) || grams <= 0) {
+    return false;
+  }
+  return realizedPnlCny >= config.cooldownBypassProfitTakePnlCny
+    && realizedPnlCny / grams >= config.cooldownBypassProfitTakePnlPerGram;
 }
 
 function isProfitTakeDecisionKind(decisionKind) {

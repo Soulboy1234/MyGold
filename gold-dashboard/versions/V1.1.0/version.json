@@ -1,0 +1,8 @@
+{
+  "version": "V1.1.0",
+  "updatedAt": "2026-03-14 15:20:00 +08:00",
+  "basePath": "../..",
+  "snapshotPath": ".",
+  "serverEntryPath": "../../server.mjs",
+  "note": "Added adaptive local-vs-NAS bind behavior, private-network request guards, and response hardening headers for the dashboard server."
+}
