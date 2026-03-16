@@ -1,6 +1,6 @@
 # Gold Task Suite for macOS
 
-Current package version: `V1.4.0`
+Current package version: `V1.4.1`
 
 This folder provides a macOS-friendly shortcut layer for the existing workspace. It does not replace the Windows scripts in `gold-task-suite-win`; it mirrors the same responsibilities with `.sh` entry points.
 

@@ -1,6 +1,6 @@
 # Gold Investor Agent
 
-Current version: `V4.4.0`
+Current version: `V4.4.1`
 
 `gold-investor-agent` is the virtual gold investing project in this workspace.
 

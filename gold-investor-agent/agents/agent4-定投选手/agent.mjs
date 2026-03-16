@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { loadStrategyConfig } from "../../shared/runtime/strategy-config.mjs";
+import { getWeekendTradingWindowStatus } from "../../shared/runtime/trading-window.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -407,6 +408,7 @@ function decideAndApply(context) {
   const intradayStats = computeIntradayStats(context.intradayRows);
   const currentPortfolio = normalizePortfolio(context.persisted.portfolio, context.config.initialCapital);
   const currentPrice = round4(context.latest.priceCnyPerGram);
+  const tradingWindow = getWeekendTradingWindowStatus(context.latest.checkedAtLocal);
   const diagnostics = buildDcaDiagnostics(
     context.latest,
     currentPortfolio,
@@ -415,17 +417,26 @@ function decideAndApply(context) {
     latestDaily,
     intradayStats
   );
-  const order = buildScheduledDcaOrder({
-    latest: context.latest,
-    portfolio: currentPortfolio,
-    currentPrice,
-    config: context.config,
-    diagnostics,
-    backtest: context.backtest,
-    agentState: context.persisted.agentState,
-    latestDaily,
-    intradayStats,
-  });
+  const order = tradingWindow.blocked
+    ? buildHoldOrder({
+        latest: context.latest,
+        reason: tradingWindow.reason,
+        targetPositionRatio: currentPositionRatio(currentPortfolio, currentPrice, context.config.sellFeePerGram),
+        decisionKind: tradingWindow.decisionKind,
+        diagnostics,
+        backtest: context.backtest,
+      })
+    : buildScheduledDcaOrder({
+        latest: context.latest,
+        portfolio: currentPortfolio,
+        currentPrice,
+        config: context.config,
+        diagnostics,
+        backtest: context.backtest,
+        agentState: context.persisted.agentState,
+        latestDaily,
+        intradayStats,
+      });
 
   const nextPortfolio = applyOrder(currentPortfolio, order, currentPrice, context.config.sellFeePerGram);
   const today = extractLocalDate(context.latest.checkedAtLocal);

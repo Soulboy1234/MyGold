@@ -1,0 +1,8 @@
+{
+  "version": "V4.4.1",
+  "updatedAt": "2026-03-16 10:45:00 +08:00",
+  "basePath": "../..",
+  "snapshotPath": "./snapshot",
+  "archivePath": "./archive",
+  "note": "Added a Beijing-time weekend trading freeze for all formal agents, blocking trades from Saturday 02:00 until Monday 09:00 while preserving pending manual and conditional orders for Agent5."
+}

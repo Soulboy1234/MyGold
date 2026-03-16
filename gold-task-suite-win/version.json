@@ -1,7 +1,7 @@
 {
   "suiteName": "gold-task-suite-win",
-  "version": "V1.4.0",
-  "updatedAt": "2026-03-14 15:20:00 +08:00",
+  "version": "V1.4.1",
+  "updatedAt": "2026-03-16 11:10:00 +08:00",
   "basePath": "..",
   "manifestPath": "./manifest.json",
   "managedProjects": {
@@ -14,9 +14,9 @@
       "snapshotVersion": "V1.1.0"
     },
     "goldInvestorAgent": {
-      "packageVersion": "4.4.0",
-      "snapshotVersion": "V4.4.0"
+      "packageVersion": "4.4.1",
+      "snapshotVersion": "V4.4.1"
     }
   },
-  "note": "Unified Windows packaging version after dashboard network hardening, formal per-agent reset controls, and managed-project version sync."
+  "note": "Unified Windows packaging version after the formal-agent weekend trading freeze and managed-project version sync."
 }

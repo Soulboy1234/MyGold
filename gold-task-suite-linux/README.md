@@ -1,6 +1,6 @@
 # Gold Task Suite for Linux
 
-Current package version: `V1.4.0`
+Current package version: `V1.4.1`
 
 This folder provides a Linux-friendly shortcut layer for the existing workspace. It is suitable for general Linux hosts and Synology NAS systems with `Node.js 22+` already installed.
 

@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
+import { getWeekendTradingWindowStatus } from "../../shared/runtime/trading-window.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -455,7 +456,8 @@ function decideAndApply(context) {
   const currentPrice = round4(context.latest.priceCnyPerGram);
   const diagnostics = buildManualGhostDiagnostics(context.latest, currentPortfolio);
   const manualOrderRequest = context.persisted.manualOrder;
-  const pendingResult = !manualOrderRequest
+  const tradingWindow = getWeekendTradingWindowStatus(context.latest.checkedAtLocal);
+  const pendingResult = !manualOrderRequest && !tradingWindow.blocked
     ? evaluatePendingOrders({
         latest: context.latest,
         portfolio: currentPortfolio,
@@ -466,7 +468,20 @@ function decideAndApply(context) {
         backtest: context.backtest,
       })
     : null;
-  const order = manualOrderRequest
+  const order = tradingWindow.blocked
+    ? buildHoldOrder({
+        latest: context.latest,
+        reason: manualOrderRequest
+          ? `${tradingWindow.reason} 当前有待执行的手动交易指令，系统会保留到允许交易后再继续处理。`
+          : Array.isArray(context.persisted.pendingOrders) && context.persisted.pendingOrders.length > 0
+            ? `${tradingWindow.reason} 当前有待触发挂单，系统会继续保留，待交易窗口重新开放后再判断。`
+            : tradingWindow.reason,
+        targetPositionRatio: currentPositionRatio(currentPortfolio, currentPrice, context.config.sellFeePerGram),
+        decisionKind: tradingWindow.decisionKind,
+        diagnostics,
+        backtest: context.backtest,
+      })
+    : manualOrderRequest
       ? buildManualTradeOrder({
         latest: context.latest,
         portfolio: currentPortfolio,
@@ -530,8 +545,10 @@ function decideAndApply(context) {
     tradeLog,
     decisionHistory: appendIfNewSnapshot(context.persisted.decisionHistory, decisionEntry),
     portfolioHistory: appendIfNewSnapshot(context.persisted.portfolioHistory, portfolioEntry),
-    pendingManualOrder: null,
-    pendingOrders: manualOrderRequest
+    pendingManualOrder: tradingWindow.blocked ? (manualOrderRequest ?? null) : null,
+    pendingOrders: tradingWindow.blocked
+      ? context.persisted.pendingOrders
+      : manualOrderRequest
       ? context.persisted.pendingOrders
       : pendingResult?.pendingOrders ?? context.persisted.pendingOrders,
   };

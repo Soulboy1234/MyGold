@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { loadStrategyConfig } from "../../shared/runtime/strategy-config.mjs";
+import { getWeekendTradingWindowStatus } from "../../shared/runtime/trading-window.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -490,6 +491,7 @@ function decideAndApply(context) {
   const currentPortfolio = normalizePortfolio(context.persisted.portfolio, context.config.initialCapital);
   const currentPrice = round4(context.latest.priceCnyPerGram);
   const processedAlready = context.persisted.agentState.lastProcessedCheckedAt === context.latest.checkedAt;
+  const tradingWindow = getWeekendTradingWindowStatus(context.latest.checkedAtLocal);
 
   const order = processedAlready
     ? buildHoldOrder({
@@ -500,6 +502,15 @@ function decideAndApply(context) {
         diagnostics: buildDiagnostics(context.latest, latestDaily, intradayStats),
         backtest: context.backtest,
       })
+    : tradingWindow.blocked
+      ? buildHoldOrder({
+          latest: context.latest,
+          reason: tradingWindow.reason,
+          targetPositionRatio: currentPositionRatio(currentPortfolio, currentPrice, context.config.sellFeePerGram),
+          decisionKind: tradingWindow.decisionKind,
+          diagnostics: buildDiagnostics(context.latest, latestDaily, intradayStats),
+          backtest: context.backtest,
+        })
     : buildRebalanceOrder({
         latest: context.latest,
         portfolio: currentPortfolio,
