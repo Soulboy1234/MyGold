@@ -1081,12 +1081,11 @@ function scoreAdvice(latest) {
 function buildDashboardData({ latest, dailyRows, intradayRows, intradayTape, backtest, liveDecision, tradeLog, decisionHistory, portfolioHistory }) {
   const chartSeries = mergeChartSeries(dailyRows, intradayRows, intradayTape, latest);
   const normalizedTrades = normalizeTradeLog(tradeLog);
-  const normalizedChartSeries = chartSeries.map((row) => ({
+  const normalizedChartSeries = sampleDashboardSeries(chartSeries.map((row) => ({
     time: row.timestampLocal,
     date: row.timestampLocal.slice(0, 10),
     priceCnyPerGram: round4(row.price),
-  }));
-  const movingAverageSeries = buildMovingAverageOverlay(normalizedChartSeries, dailyRows);
+  })));
   const totalFeesCny = calculateTotalFees(normalizedTrades, CONFIG.sellFeePerGram);
   const summary = buildPortfolioSummary(liveDecision.portfolio, totalFeesCny, liveDecision.order.action);
 
@@ -1110,7 +1109,6 @@ function buildDashboardData({ latest, dailyRows, intradayRows, intradayTape, bac
             value: round4(liveDecision.portfolio.averageCostCnyPerGram),
           }
         : null,
-      movingAverages: movingAverageSeries,
     },
     trades: normalizedTrades,
     decisions: decisionHistory.slice(-50),
@@ -1335,17 +1333,70 @@ function loadDailyRows(dbPath) {
 function loadIntradayRows(dbPath) {
   const db = new DatabaseSync(dbPath, { readonly: true });
   try {
+    const recentCutoffUtc = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
+    const mediumCutoffUtc = Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000);
     return db.prepare(`
-      SELECT
-        timestamp_local AS timestampLocal,
-        price_cny_per_gram AS price
-      FROM intraday_history
-      WHERE price_cny_per_gram IS NOT NULL
-      ORDER BY timestamp_utc
-    `).all();
+      WITH sampled AS (
+        SELECT
+          timestamp_local AS timestampLocal,
+          price_cny_per_gram AS price,
+          timestamp_utc AS timestampUtc
+        FROM intraday_history
+        WHERE price_cny_per_gram IS NOT NULL
+          AND (
+            timestamp_utc >= ?
+            OR (
+              timestamp_utc >= ?
+              AND timestamp_utc < ?
+              AND substr(timestamp_local, 12, 5) IN ('00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00')
+            )
+            OR (
+              timestamp_local >= '2012-06-27 00:00:00'
+              AND timestamp_utc < ?
+              AND substr(timestamp_local, 12, 5) IN ('00:00', '12:00')
+            )
+          )
+      )
+      SELECT timestampLocal, price
+      FROM sampled
+      ORDER BY timestampUtc
+    `).all(recentCutoffUtc, mediumCutoffUtc, recentCutoffUtc, mediumCutoffUtc);
   } finally {
     db.close();
   }
+}
+
+function sampleDashboardSeries(series) {
+  if (!Array.isArray(series) || series.length <= 18000) return series;
+  const intradayStartMs = Date.UTC(2012, 5, 27, 0, 0, 0);
+  const lastTime = parseLocalTimestamp(series.at(-1)?.time).getTime();
+  if (!Number.isFinite(lastTime)) return series;
+  const recentFullCutoffMs = lastTime - 30 * 24 * 60 * 60 * 1000;
+  const mediumCutoffMs = lastTime - 365 * 24 * 60 * 60 * 1000;
+  return series.filter((point) => {
+    const timeMs = parseLocalTimestamp(point?.time).getTime();
+    if (!Number.isFinite(timeMs)) return false;
+    if (timeMs < intradayStartMs) return true;
+    const timePart = String(point?.time || "").slice(11, 16);
+    if (timeMs >= recentFullCutoffMs) return true;
+    if (timeMs >= mediumCutoffMs) {
+      return [
+        "00:00",
+        "02:00",
+        "04:00",
+        "06:00",
+        "08:00",
+        "10:00",
+        "12:00",
+        "14:00",
+        "16:00",
+        "18:00",
+        "20:00",
+        "22:00",
+      ].includes(timePart);
+    }
+    return timePart === "00:00" || timePart === "12:00";
+  });
 }
 
 async function loadJsonLines(filePath) {

@@ -54,12 +54,14 @@ export async function loadAgentMeta(folderName, options = {}) {
   const dashboardPath = resolveManagedOutputPath(agentDir, outputDir, "dashboard-data.json");
   const portfolioPath = resolveManagedOutputPath(agentDir, outputDir, "portfolio.json");
   const tradesPath = resolveManagedOutputPath(agentDir, outputDir, "trade-log.json");
+  const virtualTradePath = resolveManagedOutputPath(agentDir, outputDir, "virtual-trade.json");
   const hasDashboard = await exists(dashboardPath);
   const autoRunEnabled = typeof raw.autoRunEnabled === "boolean"
     ? raw.autoRunEnabled
     : canonicalFolderName === DEFAULT_AGENT_NAME;
   const portfolio = await readJsonIfExists(portfolioPath, null);
   const trades = await readJsonIfExists(tradesPath, []);
+  const latestDecision = await readJsonIfExists(virtualTradePath, null);
   const market = options.market || await loadSharedMarketSnapshot();
   const snapshot = buildAgentSnapshot(portfolio, market);
   const lastExecutedTrade = findLastExecutedTrade(trades);
@@ -78,6 +80,9 @@ export async function loadAgentMeta(folderName, options = {}) {
     manualTradingEnabled: Boolean(raw.manualTradingEnabled),
     lastTradeAtLocal: lastExecutedTrade?.checkedAtLocal || lastExecutedTrade?.time || null,
     lastTradeAction: lastExecutedTrade?.action || null,
+    latestDecisionAtLocal: latestDecision?.checkedAtLocal || null,
+    latestDecisionAction: latestDecision?.action || null,
+    latestDecisionReason: latestDecision?.reason || null,
     ...snapshot,
   };
 }

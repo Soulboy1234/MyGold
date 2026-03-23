@@ -1,22 +1,22 @@
 {
   "suiteName": "gold-task-suite-dsm",
-  "version": "V1.4.1",
-  "updatedAt": "2026-03-16 11:10:00 +08:00",
+  "version": "V1.5.0",
+  "updatedAt": "2026-03-23 21:20:00 +08:00",
   "basePath": "..",
   "dependsOn": "../gold-task-suite-linux",
   "managedProjects": {
     "goldMonitor": {
-      "packageVersion": "1.1.0",
-      "snapshotVersion": "V1.1.0"
+      "packageVersion": "1.2.0",
+      "snapshotVersion": "V1.2.0"
     },
     "goldDashboard": {
-      "packageVersion": "1.1.0",
-      "snapshotVersion": "V1.1.0"
+      "packageVersion": "1.2.0",
+      "snapshotVersion": "V1.2.0"
     },
     "goldInvestorAgent": {
-      "packageVersion": "4.4.1",
-      "snapshotVersion": "V4.4.1"
+      "packageVersion": "5.0.1",
+      "snapshotVersion": "V5.0.1"
     }
   },
-  "note": "Unified DSM wrapper version aligned with the Linux suite and the formal-agent weekend trading freeze."
+  "note": "Unified DSM wrapper version aligned with the Linux suite and the latest data-stack plus dashboard hardening sync."
 }

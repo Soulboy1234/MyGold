@@ -132,6 +132,22 @@ body {
   margin-top: 4px;
 }
 
+.agent-choice-decision-row {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  margin-top: 2px;
+}
+
+.agent-choice-decision-reason {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  margin-top: 2px;
+}
+
 .agent-choice-trade-tag {
   display: inline-flex;
   align-items: center;

@@ -34,6 +34,8 @@ export function renderAgentSelector(agents, selectedAgentNames, handlers) {
     ];
     const lastTradeTime = formatSelectorTradeTime(agent.lastTradeAtLocal);
     const lastTradeLabel = formatTradeActionLabel(agent.lastTradeAction);
+    const latestDecisionSummary = formatLatestDecisionSummary(agent);
+    const latestDecisionReason = formatLatestDecisionReason(agent);
     return `
       <label class="agent-choice ${checked ? "is-selected" : ""}">
         <input type="checkbox" value="${escapeAttr(agent.folderName)}" ${checked ? "checked" : ""}>
@@ -58,6 +60,8 @@ export function renderAgentSelector(agents, selectedAgentNames, handlers) {
             <span class="agent-choice-role">${escapeHtml(agent.role || "未填写角色说明")}</span>
             ${lastTradeTime ? `<span class="agent-choice-trade-tag">末次买卖：${escapeHtml(lastTradeLabel)} · ${escapeHtml(lastTradeTime)}</span>` : ""}
           </span>
+          <span class="agent-choice-decision-row">${escapeHtml(latestDecisionSummary)}</span>
+          ${latestDecisionReason ? `<span class="agent-choice-decision-reason">${escapeHtml(latestDecisionReason)}</span>` : ""}
         </span>
         <span class="agent-choice-side">
           <span class="agent-choice-status ${agent.autoRunEnabled ? "ready" : "pending"}">${statusText}</span>
@@ -89,6 +93,24 @@ function formatTradeActionLabel(action) {
   if (normalized.startsWith("BUY")) return "买入";
   if (normalized.startsWith("SELL")) return "卖出";
   return actionLabel(normalized);
+}
+
+function formatLatestDecisionSummary(agent) {
+  const action = String(agent?.latestDecisionAction || "").toUpperCase();
+  const checkedAtLocal = formatSelectorTradeTime(agent?.latestDecisionAtLocal);
+  if (!action) {
+    return "最新决策：暂无";
+  }
+  const label = actionLabel(action);
+  return checkedAtLocal
+    ? `最新决策：${label} · ${checkedAtLocal}`
+    : `最新决策：${label}`;
+}
+
+function formatLatestDecisionReason(agent) {
+  const reason = String(agent?.latestDecisionReason || "").trim();
+  if (!reason) return "";
+  return `决策原因：${reason}`;
 }
 
 export function renderAgentPanels(panelStates) {

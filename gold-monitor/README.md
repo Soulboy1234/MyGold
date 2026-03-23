@@ -1,6 +1,6 @@
 # Gold Monitor
 
-Current version: `V1.1.0`
+Current version: `V1.2.0`
 
 `gold-monitor` is the market data monitor for the gold workspace.
 

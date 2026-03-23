@@ -36,25 +36,39 @@ const FILES = {
 const DEFAULT_CONFIG = {
   initialCapital: 100000,
   sellFeePerGram: 4,
-  minTradeCny: 8000,
-  rebalanceBufferRatio: 0.14,
-  minNetTrimPnlCny: 180,
-  minNetTrimPnlPerGram: 3.2,
-  minHoursBeforeNormalTrim: 30,
-  targetRatioCautious: 0.05,
+  minTradeCny: 14000,
+  rebalanceBufferRatio: 0.15,
+  minNetTrimPnlCny: 500,
+  minNetTrimPnlPerGram: 3.8,
+  minHoursBeforeNormalTrim: 96,
+  targetRatioCautious: 0.06,
   targetRatioProbe: 0.14,
-  targetRatioBalanced: 0.24,
-  targetRatioStrong: 0.34,
+  targetRatioBalanced: 0.26,
+  targetRatioStrong: 0.38,
   scoreExitThreshold: 20,
-  scoreProbeThreshold: 64,
-  scoreBalancedThreshold: 76,
-  scoreStrongThreshold: 88,
+  scoreProbeThreshold: 50,
+  scoreBalancedThreshold: 64,
+  scoreStrongThreshold: 76,
   longTrendExitPct: 0.965,
+  sharpDropDefenseDailySma20Pct: 0.955,
+  sharpDropDefenseDailySma60Pct: 0.975,
+  sharpDropDefenseIntradayPremiumPct: -0.02,
+  sharpDropDefenseRatio: 0.1,
+  sharpDropReboundRecoveryPct: 0.015,
+  sharpDropReboundNeedAboveSma24Pct: 1.002,
+  sharpDropReboundDailySma20Pct: 0.98,
+  sharpDropReboundRatio: 0.18,
+  valueAccumulationMinTrendScore: 26,
+  valueAccumulationMinMacroScore: 16,
+  valueAccumulationMinIntradayScore: 14,
+  valueAccumulationRatio: 0.24,
+  bandUpgradeMarginPoints: 12,
+  bandDowngradeMarginPoints: 24,
   dashboardLookbackDays: 365,
 };
 
 const STRATEGY_HISTORY = {
-  currentVersion: "v3.1.0",
+  currentVersion: "v3.3.0",
   versions: [
     {
       version: "v1.0.0",
@@ -156,6 +170,25 @@ const STRATEGY_HISTORY = {
       reason: "A genuine long-horizon trader should react much less often than the base agent and should only trim when the long-term edge is clearer and thicker.",
       reasonZh: "真正的长线交易者应该比基础版少动得多，只有在长期边际更清晰、更厚时才做普通减仓。",
     },
+    {
+      version: "v3.2.0",
+      createdAt: "2026-03-20 09:30:00",
+      updatedAt: "2026-03-20 09:30:00",
+      title: "Long-Horizon Crash Defense And Rebound Reload",
+      titleZh: "长线急跌防守与反弹回补",
+      changes: [
+        "Add a long-horizon crash-defense branch that cuts exposure earlier when live price breaks sharply below daily SMA20/SMA60.",
+        "Allow a smaller rebound reload only after the price reclaims the intraday average and the broader long-term trend still holds.",
+        "Expose the crash-defense diagnostics in live outputs for easier debugging and review.",
+      ],
+      changesZh: [
+        "增加长线急跌防守分支，当实时价格快速跌破日线 SMA20/SMA60 时更早降仓。",
+        "只有在价格重新站回盘中均线、且长期趋势未坏的前提下，才允许做一档较小的反弹回补。",
+        "把急跌防守相关诊断写进实时输出，方便后续核查和复盘。",
+      ],
+      reason: "The long-horizon agent should still trade infrequently, but it needs a dedicated way to step back during crash-like moves and only reload slowly on recovery.",
+      reasonZh: "长线策略仍然应该少操作，但在类似闪崩的行情里也需要有一条专门的防守退让路径，并且只在反弹确认后缓慢回补。",
+    },
   ],
 };
 
@@ -188,6 +221,7 @@ const STRATEGY = {
     "综合评分跌破 24 分。",
     "或者价格跌破 SMA200 的 97%。",
     "或者短期趋势转弱且宏观压力同步变差。",
+    "或者实时价格深跌破日线 SMA20/SMA60 时，先减到长线防守仓；若之后反弹修复，再只回补到较轻的反弹仓。",
   ],
   scoreMethodZh: [
     "综合评分 = 趋势分 + 宏观分 + 盘中位置分 + 追踪建议分，最后截断到 0 到 100 分。",
@@ -234,7 +268,8 @@ const CONFIG = await loadStrategyConfig(FILES.strategyConfig, DEFAULT_CONFIG, {
 const latest = JSON.parse(cleanText(await readFile(INPUTS.latest, "utf8")));
 const intradayTape = await loadJsonLines(INPUTS.intradayJsonl);
 const dailyRows = enrichDailyRows(loadDailyRows(INPUTS.dailyDb));
-const intradayRows = loadIntradayRows(INPUTS.intradayDb);
+const rawIntradayRows = loadIntradayRows(INPUTS.intradayDb);
+const intradayRows = mergeIntradaySeries(rawIntradayRows, intradayTape, latest);
 
 const backtest = runBacktest(dailyRows, CONFIG);
 const persisted = await loadPersistedState();
@@ -402,7 +437,7 @@ async function loadPersistedState() {
 }
 
 function decideAndApply(context) {
-  const latestDaily = context.dailyRows.at(-1);
+  const latestDaily = buildLiveDailyContextRow(context.dailyRows.at(-1), context.latest);
   const intradayStats = computeIntradayStats(context.intradayRows);
   const currentPortfolio = normalizePortfolio(context.persisted.portfolio, context.config.initialCapital);
   const currentPrice = round4(context.latest.priceCnyPerGram);
@@ -431,7 +466,9 @@ function decideAndApply(context) {
         latest: context.latest,
         portfolio: currentPortfolio,
         currentPrice,
-        target: chooseCompositeTargetPositionRatio(context.latest, latestDaily, intradayStats, context.config),
+        target: chooseCompositeTargetPositionRatio(context.latest, latestDaily, intradayStats, context.config, {
+          currentRatio: currentPositionRatio(currentPortfolio, currentPrice, context.config.sellFeePerGram),
+        }),
         recentTrade: getLatestTrade(context.persisted.tradeLog),
         config: context.config,
         diagnostics: buildDiagnostics(context.latest, latestDaily, intradayStats),
@@ -479,6 +516,17 @@ function decideAndApply(context) {
     tradeLog,
     decisionHistory: appendIfNewSnapshot(context.persisted.decisionHistory, decisionEntry),
     portfolioHistory: appendIfNewSnapshot(context.persisted.portfolioHistory, portfolioEntry),
+  };
+}
+
+function buildLiveDailyContextRow(latestDaily, latest) {
+  if (!latestDaily) return latestDaily;
+  const currentPrice = Number(latest?.priceCnyPerGram);
+  if (!Number.isFinite(currentPrice)) return latestDaily;
+  return {
+    ...latestDaily,
+    date: typeof latest?.checkedAtLocal === "string" ? latest.checkedAtLocal.slice(0, 10) : latestDaily.date,
+    price: currentPrice,
   };
 }
 
@@ -676,7 +724,13 @@ function buildDiagnostics(latest, latestDaily, intradayStats) {
   return {
     latestHighFrequencyAdvice: latest.highFrequencyAdvice,
     latestDailyAdvice: latest.dailyAdvice,
+    dailyContextDate: latestDaily?.date ?? null,
+    dailyContextPrice: Number.isFinite(latestDaily?.price) ? round4(latestDaily.price) : null,
     intradaySma24: intradayStats.sma24 ? round4(intradayStats.sma24) : null,
+    intradayPremiumToSma24: Number.isFinite(profile.intradayPremiumToSma24) ? round4(profile.intradayPremiumToSma24) : null,
+    intradayLatestAtLocal: intradayStats.latestTimestampLocal ?? null,
+    intradayRecentLow: Number.isFinite(intradayStats.recentLow) ? round4(intradayStats.recentLow) : null,
+    reboundFromRecentLowPct: Number.isFinite(profile.reboundFromRecentLowPct) ? round4(profile.reboundFromRecentLowPct) : null,
     bullishDaily: isBullishDailySetup(latestDaily),
     crossDown: isCrossDown(latestDaily),
     compositeScore: profile.score,
@@ -684,13 +738,154 @@ function buildDiagnostics(latest, latestDaily, intradayStats) {
     macroScore: profile.macroScore,
     intradayScore: profile.intradayScore,
     adviceScore: profile.adviceScore,
+    sharpDropDefense: profile.sharpDropDefense,
+    sharpDropRebound: profile.sharpDropRebound,
     summary: profile.summary,
   };
 }
 
-function chooseCompositeTargetPositionRatio(latest, latestDaily, intradayStats, config) {
+function chooseCompositeTargetPositionRatio(latest, latestDaily, intradayStats, config, options = {}) {
   const profile = buildCompositeSignalProfile(latest, latestDaily, intradayStats, config);
-  return chooseTargetPositionFromProfile(profile, config);
+  return chooseTargetPositionFromProfileV2(profile, config, {
+    currentRatio: options.currentRatio,
+  });
+}
+
+function chooseTargetPositionFromProfileV2(profile, config, options = {}) {
+  const currentRatio = Number.isFinite(options.currentRatio) ? options.currentRatio : 0;
+  if (profile.hardExit) {
+    return {
+      ratio: 0,
+      decisionKind: "exit",
+      reason: `综合评分 ${profile.score} 分，${profile.summary}，长线风险退出条件已触发，目标仓位降到 0%。`,
+      profile,
+    };
+  }
+
+  if (profile.sharpDropDefense) {
+    return {
+      ratio: config.sharpDropDefenseRatio,
+      decisionKind: "sharp-drop-defense",
+      reason: `综合评分 ${profile.score} 分，${profile.summary}，长线急跌防守条件已触发，先降到防守仓。`,
+      profile,
+    };
+  }
+
+  if (profile.sharpDropRebound) {
+    return {
+      ratio: config.sharpDropReboundRatio,
+      decisionKind: "sharp-drop-rebound",
+      reason: `综合评分 ${profile.score} 分，${profile.summary}，急跌后的修复反弹成立，回补到轻量长线仓。`,
+      profile,
+    };
+  }
+
+  if (
+    profile.trendScore >= config.valueAccumulationMinTrendScore
+    && profile.macroScore >= config.valueAccumulationMinMacroScore
+    && profile.intradayScore >= config.valueAccumulationMinIntradayScore
+  ) {
+    const valueRatio = Math.max(currentRatio, config.valueAccumulationRatio);
+    if (valueRatio > currentRatio) {
+      return {
+        ratio: valueRatio,
+        decisionKind: "value-accumulate",
+        reason: `综合评分 ${profile.score} 分，${profile.summary}，长线价值区间出现，允许回补到价值积累档。`,
+        profile,
+      };
+    }
+  }
+
+  const rawBand = chooseLongValueBand(profile, config);
+  const currentBand = inferLongValueBand(currentRatio, config);
+  const band = stabilizeLongValueBand(rawBand, currentBand, profile.score, config);
+  return {
+    ratio: band.ratio,
+    decisionKind: band.decisionKind,
+    reason: `综合评分 ${profile.score} 分，${profile.summary}，${band.reasonSuffix}`,
+    profile,
+  };
+}
+
+function chooseLongValueBand(profile, config) {
+  if (profile.score >= config.scoreStrongThreshold) {
+    return {
+      id: "strong",
+      threshold: config.scoreStrongThreshold,
+      ratio: config.targetRatioStrong,
+      decisionKind: "add-long",
+      reasonSuffix: "进入长线强势持有仓位。",
+    };
+  }
+
+  if (profile.score >= config.scoreBalancedThreshold) {
+    return {
+      id: "balanced",
+      threshold: config.scoreBalancedThreshold,
+      ratio: config.targetRatioBalanced,
+      decisionKind: "balanced-long",
+      reasonSuffix: "维持长线平衡仓位。",
+    };
+  }
+
+  if (profile.score >= config.scoreProbeThreshold) {
+    return {
+      id: "probe",
+      threshold: config.scoreProbeThreshold,
+      ratio: config.targetRatioProbe,
+      decisionKind: "probe-long",
+      reasonSuffix: "保留长线试探仓位。",
+    };
+  }
+
+  if (profile.score >= config.scoreExitThreshold) {
+    return {
+      id: "cautious",
+      threshold: config.scoreExitThreshold,
+      ratio: config.targetRatioCautious,
+      decisionKind: "cautious-hold",
+      reasonSuffix: "收缩到轻仓观察。",
+    };
+  }
+
+  return {
+    id: "stand-aside",
+    threshold: 0,
+    ratio: 0,
+    decisionKind: "stand-aside",
+    reasonSuffix: "暂时空仓等待。",
+  };
+}
+
+function inferLongValueBand(currentRatio, config) {
+  const cautiousBoundary = config.targetRatioCautious / 2;
+  const probeBoundary = (config.targetRatioCautious + config.targetRatioProbe) / 2;
+  const balancedBoundary = (config.targetRatioProbe + config.targetRatioBalanced) / 2;
+  const strongBoundary = (config.targetRatioBalanced + config.targetRatioStrong) / 2;
+  if (currentRatio >= strongBoundary) return chooseLongValueBand({ score: config.scoreStrongThreshold }, config);
+  if (currentRatio >= balancedBoundary) return chooseLongValueBand({ score: config.scoreBalancedThreshold }, config);
+  if (currentRatio >= probeBoundary) return chooseLongValueBand({ score: config.scoreProbeThreshold }, config);
+  if (currentRatio >= cautiousBoundary) return chooseLongValueBand({ score: config.scoreExitThreshold }, config);
+  return chooseLongValueBand({ score: -1 }, config);
+}
+
+function stabilizeLongValueBand(rawBand, currentBand, score, config) {
+  if (!rawBand || !currentBand || rawBand.id === currentBand.id) return rawBand;
+  const rank = {
+    "stand-aside": 0,
+    cautious: 1,
+    probe: 2,
+    balanced: 3,
+    strong: 4,
+  };
+  const rawRank = rank[rawBand.id] ?? 0;
+  const currentRank = rank[currentBand.id] ?? 0;
+  if (rawRank > currentRank) {
+    const upgradeThreshold = rawBand.threshold + config.bandUpgradeMarginPoints;
+    return score >= upgradeThreshold ? rawBand : currentBand;
+  }
+  const holdThreshold = currentBand.threshold - config.bandDowngradeMarginPoints;
+  return score < holdThreshold ? rawBand : currentBand;
 }
 
 function buildCompositeSignalProfile(latest, latestDaily, intradayStats, config = CONFIG) {
@@ -700,12 +895,33 @@ function buildCompositeSignalProfile(latest, latestDaily, intradayStats, config 
   const adviceScore = scoreAdvice(latest);
   const score = clamp(Math.round(trendScore + macroScore + intradayScore + adviceScore), 0, 100);
   const crossDown = isCrossDown(latestDaily);
+  const intradayPremiumToSma24 = Number.isFinite(intradayStats.sma24)
+    ? latest.priceCnyPerGram / intradayStats.sma24 - 1
+    : null;
+  const reboundFromRecentLowPct = Number.isFinite(intradayStats.recentLow) && intradayStats.recentLow > 0
+    ? latest.priceCnyPerGram / intradayStats.recentLow - 1
+    : null;
   const longTrendBroken = Boolean(
     latestDaily
       && Number.isFinite(latestDaily.sma200)
       && latestDaily.price < latestDaily.sma200 * config.longTrendExitPct
   );
   const hardExit = longTrendBroken || (crossDown && score < config.scoreProbeThreshold);
+  const sharpDropDefense = !hardExit
+    && Number.isFinite(intradayPremiumToSma24)
+    && Number.isFinite(latestDaily?.sma20)
+    && Number.isFinite(latestDaily?.sma60)
+    && intradayPremiumToSma24 <= config.sharpDropDefenseIntradayPremiumPct
+    && latestDaily.price <= latestDaily.sma20 * config.sharpDropDefenseDailySma20Pct
+    && latestDaily.price <= latestDaily.sma60 * config.sharpDropDefenseDailySma60Pct;
+  const sharpDropRebound = !hardExit
+    && !sharpDropDefense
+    && Number.isFinite(reboundFromRecentLowPct)
+    && reboundFromRecentLowPct >= config.sharpDropReboundRecoveryPct
+    && Number.isFinite(intradayStats.sma24)
+    && latest.priceCnyPerGram >= intradayStats.sma24 * config.sharpDropReboundNeedAboveSma24Pct
+    && Number.isFinite(latestDaily?.sma20)
+    && latestDaily.price <= latestDaily.sma20 * config.sharpDropReboundDailySma20Pct;
 
   return {
     score,
@@ -716,10 +932,14 @@ function buildCompositeSignalProfile(latest, latestDaily, intradayStats, config 
     crossDown,
     longTrendBroken,
     hardExit,
+    intradayPremiumToSma24,
+    reboundFromRecentLowPct,
+    sharpDropDefense,
+    sharpDropRebound,
     summary: [
       trendScore >= 28 ? "日线趋势偏强" : trendScore >= 18 ? "日线趋势中性" : "日线趋势偏弱",
       macroScore >= 20 ? "宏观压制较轻" : macroScore >= 12 ? "宏观中性" : "宏观压力偏大",
-      intradayScore >= 10 ? "盘中位置不高" : intradayScore >= 6 ? "盘中位置中性" : "盘中过热或偏弱",
+      sharpDropDefense ? "长线急跌防守触发" : sharpDropRebound ? "长线反弹回补窗口出现" : intradayScore >= 10 ? "盘中位置不高" : intradayScore >= 6 ? "盘中位置中性" : "盘中过热或偏弱",
       adviceScore >= 10 ? "追踪建议偏多" : adviceScore >= 6 ? "追踪建议中性" : "追踪建议谨慎",
     ].join("，"),
   };
@@ -731,6 +951,24 @@ function chooseTargetPositionFromProfile(profile, config) {
       ratio: 0,
       decisionKind: "exit",
       reason: `综合评分 ${profile.score} 分，${profile.summary}，风险条件已触发，目标仓位降至 0%。`,
+      profile,
+    };
+  }
+
+  if (profile.sharpDropDefense) {
+    return {
+      ratio: config.sharpDropDefenseRatio,
+      decisionKind: "sharp-drop-defense",
+      reason: `综合评分 ${profile.score} 分，${profile.summary}，长线急跌防守条件已触发，先降到防守仓。`,
+      profile,
+    };
+  }
+
+  if (profile.sharpDropRebound) {
+    return {
+      ratio: config.sharpDropReboundRatio,
+      decisionKind: "sharp-drop-rebound",
+      reason: `综合评分 ${profile.score} 分，${profile.summary}，急跌后反弹修复成立，回补到轻量反弹仓。`,
       profile,
     };
   }
@@ -865,12 +1103,11 @@ function scoreAdvice(latest) {
 function buildDashboardData({ latest, dailyRows, intradayRows, intradayTape, backtest, liveDecision, tradeLog, decisionHistory, portfolioHistory }) {
   const chartSeries = mergeChartSeries(dailyRows, intradayRows, intradayTape, latest);
   const normalizedTrades = normalizeTradeLog(tradeLog);
-  const normalizedChartSeries = chartSeries.map((row) => ({
+  const normalizedChartSeries = sampleDashboardSeries(chartSeries.map((row) => ({
     time: row.timestampLocal,
     date: row.timestampLocal.slice(0, 10),
     priceCnyPerGram: round4(row.price),
-  }));
-  const movingAverageSeries = buildMovingAverageOverlay(normalizedChartSeries, dailyRows);
+  })));
   const totalFeesCny = calculateTotalFees(normalizedTrades, CONFIG.sellFeePerGram);
   const summary = buildPortfolioSummary(liveDecision.portfolio, totalFeesCny, liveDecision.order.action);
 
@@ -894,7 +1131,6 @@ function buildDashboardData({ latest, dailyRows, intradayRows, intradayTape, bac
             value: round4(liveDecision.portfolio.averageCostCnyPerGram),
           }
         : null,
-      movingAverages: movingAverageSeries,
     },
     trades: normalizedTrades,
     decisions: decisionHistory.slice(-50),
@@ -1060,17 +1296,70 @@ function loadDailyRows(dbPath) {
 function loadIntradayRows(dbPath) {
   const db = new DatabaseSync(dbPath, { readonly: true });
   try {
+    const recentCutoffUtc = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
+    const mediumCutoffUtc = Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000);
     return db.prepare(`
-      SELECT
-        timestamp_local AS timestampLocal,
-        price_cny_per_gram AS price
-      FROM intraday_history
-      WHERE price_cny_per_gram IS NOT NULL
-      ORDER BY timestamp_utc
-    `).all();
+      WITH sampled AS (
+        SELECT
+          timestamp_local AS timestampLocal,
+          price_cny_per_gram AS price,
+          timestamp_utc AS timestampUtc
+        FROM intraday_history
+        WHERE price_cny_per_gram IS NOT NULL
+          AND (
+            timestamp_utc >= ?
+            OR (
+              timestamp_utc >= ?
+              AND timestamp_utc < ?
+              AND substr(timestamp_local, 12, 5) IN ('00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00')
+            )
+            OR (
+              timestamp_local >= '2012-06-27 00:00:00'
+              AND timestamp_utc < ?
+              AND substr(timestamp_local, 12, 5) IN ('00:00', '12:00')
+            )
+          )
+      )
+      SELECT timestampLocal, price
+      FROM sampled
+      ORDER BY timestampUtc
+    `).all(recentCutoffUtc, mediumCutoffUtc, recentCutoffUtc, mediumCutoffUtc);
   } finally {
     db.close();
   }
+}
+
+function sampleDashboardSeries(series) {
+  if (!Array.isArray(series) || series.length <= 18000) return series;
+  const intradayStartMs = Date.UTC(2012, 5, 27, 0, 0, 0);
+  const lastTime = parseLocalTimestamp(series.at(-1)?.time).getTime();
+  if (!Number.isFinite(lastTime)) return series;
+  const recentFullCutoffMs = lastTime - 30 * 24 * 60 * 60 * 1000;
+  const mediumCutoffMs = lastTime - 365 * 24 * 60 * 60 * 1000;
+  return series.filter((point) => {
+    const timeMs = parseLocalTimestamp(point?.time).getTime();
+    if (!Number.isFinite(timeMs)) return false;
+    if (timeMs < intradayStartMs) return true;
+    const timePart = String(point?.time || "").slice(11, 16);
+    if (timeMs >= recentFullCutoffMs) return true;
+    if (timeMs >= mediumCutoffMs) {
+      return [
+        "00:00",
+        "02:00",
+        "04:00",
+        "06:00",
+        "08:00",
+        "10:00",
+        "12:00",
+        "14:00",
+        "16:00",
+        "18:00",
+        "20:00",
+        "22:00",
+      ].includes(timePart);
+    }
+    return timePart === "00:00" || timePart === "12:00";
+  });
 }
 
 async function loadJsonLines(filePath) {
@@ -1126,9 +1415,15 @@ function buildMovingAverageOverlay(chartSeries, dailyRows) {
 }
 
 function computeIntradayStats(rows) {
-  const slice = Array.isArray(rows) ? rows.slice(-24) : [];
-  const sma24 = slice.length ? slice.reduce((sum, row) => sum + row.price, 0) / slice.length : null;
-  return { sma24 };
+  const normalized = Array.isArray(rows) ? rows.slice(-144) : [];
+  const smaSlice = normalized.slice(-24);
+  const sma24 = smaSlice.length ? smaSlice.reduce((sum, row) => sum + row.price, 0) / smaSlice.length : null;
+  const recentLow = normalized.reduce((min, row) => (Number.isFinite(row.price) && row.price < min ? row.price : min), Number.POSITIVE_INFINITY);
+  return {
+    sma24,
+    recentLow: Number.isFinite(recentLow) ? recentLow : null,
+    latestTimestampLocal: normalized.at(-1)?.timestampLocal ?? null,
+  };
 }
 
 function isBullishDailySetup(row) {
@@ -1169,7 +1464,7 @@ function chooseBacktestDecision(row, config) {
     { sma24: row?.price },
     config
   );
-  return chooseTargetPositionFromProfile(profile, config);
+  return chooseTargetPositionFromProfileV2(profile, config, { currentRatio: 0 });
 }
 
 function movingAverage(rows, endIndex, length, key) {

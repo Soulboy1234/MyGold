@@ -36,36 +36,49 @@ const FILES = {
 const DEFAULT_CONFIG = {
   initialCapital: 100000,
   sellFeePerGram: 4,
-  minTradeCny: 1800,
-  rebalanceBufferRatio: 0.03,
-  targetRatioCautious: 0.14,
-  targetRatioProbe: 0.32,
-  targetRatioBalanced: 0.5,
-  targetRatioStrong: 0.64,
-  scoreExitThreshold: 26,
-  scoreProbeThreshold: 46,
-  scoreBalancedThreshold: 56,
-  scoreStrongThreshold: 68,
+  minTradeCny: 6000,
+  rebalanceBufferRatio: 0.07,
+  targetRatioCautious: 0.1,
+  targetRatioProbe: 0.24,
+  targetRatioBalanced: 0.46,
+  targetRatioStrong: 0.66,
+  scoreExitThreshold: 30,
+  scoreProbeThreshold: 40,
+  scoreBalancedThreshold: 53,
+  scoreStrongThreshold: 65,
   longTrendExitPct: 0.978,
-  shortTermDipPremium: -0.0032,
-  shortTermStrongDipPremium: -0.0052,
-  shortTermTrimPremium: 0.0075,
-  shortTermHardTrimPremium: 0.0115,
-  minTrendScoreForTacticalAdd: 24,
-  minMacroScoreForTacticalAdd: 14,
-  maxRatioWhenTrendWeak: 0.18,
-  maxRatioWhenMacroHeavy: 0.32,
-  maxRatioOnCrossDown: 0.14,
-  minNetTrimPnlCny: 120,
-  minNetTrimPnlPerGram: 2.2,
-  minProfitTakeTrimPnlCny: 180,
-  minProfitTakeTrimPnlPerGram: 3,
-  minHoursBeforeProfitTakeTrim: 2,
+  flashCrashDailySma20Pct: 0.958,
+  flashCrashDailySma60Pct: 0.982,
+  flashCrashIntradayPremiumPct: -0.02,
+  flashCrashReboundRecoveryPct: 0.012,
+  flashCrashReboundNeedAboveSma6Pct: 0.999,
+  flashCrashTrialRatio: 0.46,
+  flashCrashReversalRatio: 0.66,
+  minTrendScoreForFlashCrashAdd: 22,
+  minMacroScoreForFlashCrashAdd: 10,
+  shortTermDipPremium: -0.0075,
+  shortTermStrongDipPremium: -0.011,
+  shortTermTrimPremium: 0.013,
+  shortTermHardTrimPremium: 0.019,
+  minTrendScoreForTacticalAdd: 26,
+  minMacroScoreForTacticalAdd: 12,
+  maxRatioWhenTrendWeak: 0.14,
+  maxRatioWhenMacroHeavy: 0.24,
+  maxRatioOnCrossDown: 0.08,
+  minNetTrimPnlCny: 240,
+  minNetTrimPnlPerGram: 3.4,
+  minProfitTakeTrimPnlCny: 480,
+  minProfitTakeTrimPnlPerGram: 5.5,
+  cooldownBypassProfitTakePnlCny: 900,
+  cooldownBypassProfitTakePnlPerGram: 8,
+  minHoursBeforeProfitTakeTrim: 20,
+  bandUpgradeMarginPoints: 6,
+  bandDowngradeMarginPoints: 12,
   dashboardLookbackDays: 180,
 };
 
 const STRATEGY_HISTORY = {
-  currentVersion: "v3.4.0",
+  currentVersion: "v3.6.0",
   versions: [
     {
       version: "v1.0.0",
@@ -224,6 +237,25 @@ const STRATEGY_HISTORY = {
       reason: "A short-swing strategy should actively trade the best edges, not turn every intraday overheat reading into a hurried low-quality trim.",
       reasonZh: "短线策略应该主动抓最有质量的利润边际，而不是把每一次盘中过热都变成匆忙、质量不高的止盈减仓。",
     },
+    {
+      version: "v3.5.0",
+      createdAt: "2026-03-20 09:30:00",
+      updatedAt: "2026-03-20 09:30:00",
+      title: "Flash-Crash Trial And Reversal Buy",
+      titleZh: "急跌试探与反手加仓",
+      changes: [
+        "Add a sharp-drop trial-buy rule that can raise exposure faster than normal dip-buy logic.",
+        "Allow a follow-up reversal buy when price rebounds off the flush and reclaims the short intraday average.",
+        "Keep fee-aware trim filters, but let extremely profitable trims bypass the short cooldown.",
+      ],
+      changesZh: [
+        "新增急跌试探加仓规则，让短线仓位能比普通回撤加仓更快抬升。",
+        "当价格从急跌低点反弹并重新收回盘中短均线时，允许做一档更积极的反手加仓。",
+        "继续保留手续费过滤，同时让极高质量的止盈减仓可以绕过短冷却限制。",
+      ],
+      reason: "A short-swing trader should respond to sharp flushes more decisively, first with a probe and then with a stronger reversal add when the bounce confirms.",
+      reasonZh: "短线选手面对急跌时，应该先快速试探，再在反弹确认时更积极地反手加仓，而不是完全被常规缓冲区卡住。",
+    },
   ],
 };
 
@@ -252,6 +284,7 @@ const STRATEGY = {
     "价格必须维持在长期趋势底线之上。",
     "只有当趋势分和宏观分都足够健康时，盘中跌破 SMA24 才允许加一个仓位档位。",
     "更深的盘中回撤只会在高层级环境已经偏强时才提升到最强仓位。",
+    "如果实时价格急跌破日线 SMA20/SMA60 且盘中明显超跌，会先试探加仓；若随后快速收回盘中短均线，再提升到更积极的反手仓位。",
   ],
   sellRuleZh: [
     "综合评分跌破 26 分。",
@@ -285,7 +318,8 @@ const CONFIG = await loadStrategyConfig(FILES.strategyConfig, DEFAULT_CONFIG, {
 const latest = JSON.parse(cleanText(await readFile(INPUTS.latest, "utf8")));
 const intradayTape = await loadJsonLines(INPUTS.intradayJsonl);
 const dailyRows = enrichDailyRows(loadDailyRows(INPUTS.dailyDb));
-const intradayRows = loadIntradayRows(INPUTS.intradayDb);
+const rawIntradayRows = loadIntradayRows(INPUTS.intradayDb);
+const intradayRows = mergeIntradaySeries(rawIntradayRows, intradayTape, latest);
 
 const backtest = runBacktest(dailyRows, CONFIG);
 const persisted = await loadPersistedState();
@@ -486,7 +520,7 @@ async function loadPersistedState() {
 }
 
 function decideAndApply(context) {
-  const latestDaily = context.dailyRows.at(-1);
+  const latestDaily = buildLiveDailyContextRow(context.dailyRows.at(-1), context.latest);
   const intradayStats = computeIntradayStats(context.intradayRows);
   const currentPortfolio = normalizePortfolio(context.persisted.portfolio, context.config.initialCapital);
   const currentPrice = round4(context.latest.priceCnyPerGram);
@@ -515,7 +549,9 @@ function decideAndApply(context) {
         latest: context.latest,
         portfolio: currentPortfolio,
         currentPrice,
-        target: chooseCompositeTargetPositionRatio(context.latest, latestDaily, intradayStats, context.config),
+        target: chooseCompositeTargetPositionRatio(context.latest, latestDaily, intradayStats, context.config, {
+          currentRatio: currentPositionRatio(currentPortfolio, currentPrice, context.config.sellFeePerGram),
+        }),
         recentTrade: getLatestTrade(context.persisted.tradeLog),
         config: context.config,
         diagnostics: buildDiagnostics(context.latest, latestDaily, intradayStats),
@@ -563,6 +599,17 @@ function decideAndApply(context) {
     tradeLog,
     decisionHistory: appendIfNewSnapshot(context.persisted.decisionHistory, decisionEntry),
     portfolioHistory: appendIfNewSnapshot(context.persisted.portfolioHistory, portfolioEntry),
+  };
+}
+
+function buildLiveDailyContextRow(latestDaily, latest) {
+  if (!latestDaily) return latestDaily;
+  const currentPrice = Number(latest?.priceCnyPerGram);
+  if (!Number.isFinite(currentPrice)) return latestDaily;
+  return {
+    ...latestDaily,
+    date: typeof latest?.checkedAtLocal === "string" ? latest.checkedAtLocal.slice(0, 10) : latestDaily.date,
+    price: currentPrice,
   };
 }
 
@@ -771,8 +818,11 @@ function buildDiagnostics(latest, latestDaily, intradayStats) {
   return {
     latestHighFrequencyAdvice: latest.highFrequencyAdvice,
     latestDailyAdvice: latest.dailyAdvice,
+    dailyContextDate: latestDaily?.date ?? null,
+    dailyContextPrice: Number.isFinite(latestDaily?.price) ? round4(latestDaily.price) : null,
     intradaySma6: intradayStats.sma6 ? round4(intradayStats.sma6) : null,
     intradaySma24: intradayStats.sma24 ? round4(intradayStats.sma24) : null,
+    intradayLatestAtLocal: intradayStats.latestTimestampLocal ?? null,
     bullishDaily: isBullishDailySetup(latestDaily),
     crossDown: isCrossDown(latestDaily),
     compositeScore: profile.score,
@@ -782,15 +832,21 @@ function buildDiagnostics(latest, latestDaily, intradayStats) {
     adviceScore: profile.adviceScore,
     intradayPremiumToSma24: Number.isFinite(profile.intradayPremiumToSma24) ? round4(profile.intradayPremiumToSma24) : null,
     intradayPremiumToSma6: Number.isFinite(profile.intradayPremiumToSma6) ? round4(profile.intradayPremiumToSma6) : null,
+    intradayRecentLow: Number.isFinite(intradayStats.recentLow) ? round4(intradayStats.recentLow) : null,
+    reboundFromRecentLowPct: Number.isFinite(profile.reboundFromRecentLowPct) ? round4(profile.reboundFromRecentLowPct) : null,
     shortTermDipBuy: profile.shortTermDipBuy,
+    flashCrashTrialBuy: profile.flashCrashTrialBuy,
+    flashCrashReversalBuy: profile.flashCrashReversalBuy,
     shortTermOverheatTrim: profile.shortTermOverheatTrim,
     summary: profile.summary,
   };
 }
 
-function chooseCompositeTargetPositionRatio(latest, latestDaily, intradayStats, config) {
+function chooseCompositeTargetPositionRatio(latest, latestDaily, intradayStats, config, options = {}) {
   const profile = buildCompositeSignalProfile(latest, latestDaily, intradayStats, config);
-  return chooseTargetPositionFromProfile(profile, config);
+  return chooseTargetPositionFromProfile(profile, config, {
+    currentRatio: options.currentRatio,
+  });
 }
 
 function buildCompositeSignalProfile(latest, latestDaily, intradayStats, config = CONFIG) {
@@ -802,6 +858,11 @@ function buildCompositeSignalProfile(latest, latestDaily, intradayStats, config 
   const crossDown = isCrossDown(latestDaily);
   const intradayPremiumToSma24 = Number.isFinite(intradayStats.sma24) ? latest.priceCnyPerGram / intradayStats.sma24 - 1 : null;
   const intradayPremiumToSma6 = Number.isFinite(intradayStats.sma6) ? latest.priceCnyPerGram / intradayStats.sma6 - 1 : null;
+  const reboundFromRecentLowPct = Number.isFinite(intradayStats.recentLow) && intradayStats.recentLow > 0
+    ? latest.priceCnyPerGram / intradayStats.recentLow - 1
+    : null;
+  const priceVsSma20 = Number.isFinite(latestDaily?.sma20) ? latest.priceCnyPerGram / latestDaily.sma20 - 1 : null;
+  const priceVsSma60 = Number.isFinite(latestDaily?.sma60) ? latest.priceCnyPerGram / latestDaily.sma60 - 1 : null;
   const longTrendBroken = Boolean(
     latestDaily
       && Number.isFinite(latestDaily.sma200)
@@ -820,6 +881,24 @@ function buildCompositeSignalProfile(latest, latestDaily, intradayStats, config 
   const shortTermHardTrim = Number.isFinite(intradayPremiumToSma24)
     && intradayPremiumToSma24 >= config.shortTermHardTrimPremium
     && score >= config.scoreBalancedThreshold;
+  const flashCrashBase = !hardExit
+    && !crossDown
+    && !longTrendBroken
+    && trendScore >= config.minTrendScoreForFlashCrashAdd
+    && macroScore >= config.minMacroScoreForFlashCrashAdd
+    && (
+      (Number.isFinite(priceVsSma20) && latest.priceCnyPerGram <= latestDaily.sma20 * config.flashCrashDailySma20Pct)
+      || (Number.isFinite(priceVsSma60) && latest.priceCnyPerGram <= latestDaily.sma60 * config.flashCrashDailySma60Pct)
+    );
+  const flashCrashTrialBuy = flashCrashBase
+    && Number.isFinite(intradayPremiumToSma24)
+    && intradayPremiumToSma24 <= config.flashCrashIntradayPremiumPct;
+  const flashCrashReversalBuy = flashCrashBase
+    && Number.isFinite(reboundFromRecentLowPct)
+    && reboundFromRecentLowPct >= config.flashCrashReboundRecoveryPct
+    && Number.isFinite(intradayStats.sma6)
+    && latest.priceCnyPerGram >= intradayStats.sma6 * config.flashCrashReboundNeedAboveSma6Pct
+    && score >= config.scoreProbeThreshold;
 
   return {
     score,
@@ -832,20 +911,32 @@ function buildCompositeSignalProfile(latest, latestDaily, intradayStats, config 
     hardExit,
     intradayPremiumToSma24,
     intradayPremiumToSma6,
+    reboundFromRecentLowPct,
     shortTermDipBuy,
     shortTermStrongDipBuy,
     shortTermOverheatTrim,
     shortTermHardTrim,
+    flashCrashTrialBuy,
+    flashCrashReversalBuy,
     summary: [
       trendScore >= 28 ? "日线趋势偏强" : trendScore >= 18 ? "日线趋势中性" : "日线趋势偏弱",
       macroScore >= 20 ? "宏观压制较轻" : macroScore >= 12 ? "宏观中性" : "宏观压力偏大",
-      intradayScore >= 12 ? "盘中回撤可买" : intradayScore >= 8 ? "盘中位置中性" : "盘中过热",
+      flashCrashReversalBuy
+        ? "急跌后反手窗口出现"
+        : flashCrashTrialBuy
+          ? "急跌试探窗口出现"
+          : intradayScore >= 12
+            ? "盘中回撤可买"
+            : intradayScore >= 8
+              ? "盘中位置中性"
+              : "盘中过热",
       adviceScore >= 10 ? "追踪建议偏多" : adviceScore >= 6 ? "追踪建议中性" : "追踪建议谨慎",
     ].join("，"),
   };
 }
 
-function chooseTargetPositionFromProfile(profile, config) {
+function chooseTargetPositionFromProfile(profile, config, options = {}) {
+  const currentRatio = Number.isFinite(options.currentRatio) ? options.currentRatio : 0;
   if (profile.hardExit) {
     return {
       ratio: 0,
@@ -855,7 +946,9 @@ function chooseTargetPositionFromProfile(profile, config) {
     };
   }
 
-  const base = chooseBaseAggressiveTier(profile, config);
+  const rawBase = chooseBaseAggressiveTier(profile, config);
+  const currentBand = inferAggressiveTier(currentRatio, config);
+  const base = stabilizeAggressiveTier(rawBase, currentBand, profile.score, config);
   if (base.ratio === 0) {
     return {
       ratio: 0,
@@ -911,7 +1004,21 @@ function chooseTargetPositionFromProfile(profile, config) {
       && profile.trendScore >= config.minTrendScoreForTacticalAdd
       && profile.macroScore >= config.minMacroScoreForTacticalAdd;
 
-    if (tacticalAddAllowed && profile.shortTermStrongDipBuy) {
+    if (profile.flashCrashReversalBuy) {
+      const boosted = Math.max(ratio, config.flashCrashReversalRatio);
+      if (boosted > ratio) {
+        ratio = boosted;
+        decisionKind = "buy-flash-crash-reversal";
+        notes.push("急跌后已经重新收回盘中短均线，允许做一档更积极的反手加仓。");
+      }
+    } else if (profile.flashCrashTrialBuy) {
+      const boosted = Math.max(ratio, config.flashCrashTrialRatio);
+      if (boosted > ratio) {
+        ratio = boosted;
+        decisionKind = "buy-flash-crash-trial";
+        notes.push("实时价格急跌到日线关键均线下方，先做一笔更主动的短线试探仓。");
+      }
+    } else if (tacticalAddAllowed && profile.shortTermStrongDipBuy) {
       const boosted = stepUpAggressiveTier(ratio, config, 1);
       if (boosted > ratio) {
         ratio = boosted;
@@ -939,6 +1046,7 @@ function chooseTargetPositionFromProfile(profile, config) {
 function chooseBaseAggressiveTier(profile, config) {
   if (profile.score >= config.scoreStrongThreshold) {
     return {
+      threshold: config.scoreStrongThreshold,
       ratio: config.targetRatioStrong,
       decisionKind: "add-long",
       reason: "高层级环境偏强，允许进入短线强势仓。",
@@ -947,6 +1055,7 @@ function chooseBaseAggressiveTier(profile, config) {
 
   if (profile.score >= config.scoreBalancedThreshold) {
     return {
+      threshold: config.scoreBalancedThreshold,
       ratio: config.targetRatioBalanced,
       decisionKind: "balanced-long",
       reason: "高层级环境稳定，维持短线平衡仓。",
@@ -955,6 +1064,7 @@ function chooseBaseAggressiveTier(profile, config) {
 
   if (profile.score >= config.scoreProbeThreshold) {
     return {
+      threshold: config.scoreProbeThreshold,
       ratio: config.targetRatioProbe,
       decisionKind: "probe-long",
       reason: "高层级环境允许保留短线试探仓。",
@@ -963,6 +1073,7 @@ function chooseBaseAggressiveTier(profile, config) {
 
   if (profile.score >= config.scoreExitThreshold) {
     return {
+      threshold: config.scoreExitThreshold,
       ratio: config.targetRatioCautious,
       decisionKind: "cautious-hold",
       reason: "当前只适合保留谨慎轻仓。",
@@ -970,10 +1081,42 @@ function chooseBaseAggressiveTier(profile, config) {
   }
 
   return {
+    threshold: 0,
     ratio: 0,
     decisionKind: "stand-aside",
     reason: "当前不适合持有多头仓位。",
   };
+}
+
+function inferAggressiveTier(currentRatio, config) {
+  const cautiousBoundary = config.targetRatioCautious / 2;
+  const probeBoundary = (config.targetRatioCautious + config.targetRatioProbe) / 2;
+  const balancedBoundary = (config.targetRatioProbe + config.targetRatioBalanced) / 2;
+  const strongBoundary = (config.targetRatioBalanced + config.targetRatioStrong) / 2;
+  if (currentRatio >= strongBoundary) return chooseBaseAggressiveTier({ score: config.scoreStrongThreshold }, config);
+  if (currentRatio >= balancedBoundary) return chooseBaseAggressiveTier({ score: config.scoreBalancedThreshold }, config);
+  if (currentRatio >= probeBoundary) return chooseBaseAggressiveTier({ score: config.scoreProbeThreshold }, config);
+  if (currentRatio >= cautiousBoundary) return chooseBaseAggressiveTier({ score: config.scoreExitThreshold }, config);
+  return chooseBaseAggressiveTier({ score: -1 }, config);
+}
+
+function stabilizeAggressiveTier(rawTier, currentTier, score, config) {
+  if (!rawTier || !currentTier || rawTier.decisionKind === currentTier.decisionKind) return rawTier;
+  const rank = {
+    "stand-aside": 0,
+    "cautious-hold": 1,
+    "probe-long": 2,
+    "balanced-long": 3,
+    "add-long": 4,
+  };
+  const rawRank = rank[rawTier.decisionKind] ?? 0;
+  const currentRank = rank[currentTier.decisionKind] ?? 0;
+  if (rawRank > currentRank) {
+    const upgradeThreshold = rawTier.threshold + config.bandUpgradeMarginPoints;
+    return score >= upgradeThreshold ? rawTier : currentTier;
+  }
+  const holdThreshold = currentTier.threshold - config.bandDowngradeMarginPoints;
+  return score < holdThreshold ? rawTier : currentTier;
 }
 
 function stepUpAggressiveTier(ratio, config, steps = 1) {
@@ -1129,12 +1272,11 @@ function scoreAdvice(latest) {
 function buildDashboardData({ latest, dailyRows, intradayRows, intradayTape, backtest, liveDecision, tradeLog, decisionHistory, portfolioHistory }) {
   const chartSeries = mergeChartSeries(dailyRows, intradayRows, intradayTape, latest);
   const normalizedTrades = normalizeTradeLog(tradeLog);
-  const normalizedChartSeries = chartSeries.map((row) => ({
+  const normalizedChartSeries = sampleDashboardSeries(chartSeries.map((row) => ({
     time: row.timestampLocal,
     date: row.timestampLocal.slice(0, 10),
     priceCnyPerGram: round4(row.price),
-  }));
-  const movingAverageSeries = buildMovingAverageOverlay(normalizedChartSeries, dailyRows);
+  })));
   const totalFeesCny = calculateTotalFees(normalizedTrades, CONFIG.sellFeePerGram);
   const summary = buildPortfolioSummary(liveDecision.portfolio, totalFeesCny, liveDecision.order.action);
 
@@ -1158,7 +1300,6 @@ function buildDashboardData({ latest, dailyRows, intradayRows, intradayTape, bac
             value: round4(liveDecision.portfolio.averageCostCnyPerGram),
           }
         : null,
-      movingAverages: movingAverageSeries,
     },
     trades: normalizedTrades,
     decisions: decisionHistory.slice(-50),
@@ -1318,17 +1459,70 @@ function loadDailyRows(dbPath) {
 function loadIntradayRows(dbPath) {
   const db = new DatabaseSync(dbPath, { readonly: true });
   try {
+    const recentCutoffUtc = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
+    const mediumCutoffUtc = Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000);
     return db.prepare(`
-      SELECT
-        timestamp_local AS timestampLocal,
-        price_cny_per_gram AS price
-      FROM intraday_history
-      WHERE price_cny_per_gram IS NOT NULL
-      ORDER BY timestamp_utc
-    `).all();
+      WITH sampled AS (
+        SELECT
+          timestamp_local AS timestampLocal,
+          price_cny_per_gram AS price,
+          timestamp_utc AS timestampUtc
+        FROM intraday_history
+        WHERE price_cny_per_gram IS NOT NULL
+          AND (
+            timestamp_utc >= ?
+            OR (
+              timestamp_utc >= ?
+              AND timestamp_utc < ?
+              AND substr(timestamp_local, 12, 5) IN ('00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00')
+            )
+            OR (
+              timestamp_local >= '2012-06-27 00:00:00'
+              AND timestamp_utc < ?
+              AND substr(timestamp_local, 12, 5) IN ('00:00', '12:00')
+            )
+          )
+      )
+      SELECT timestampLocal, price
+      FROM sampled
+      ORDER BY timestampUtc
+    `).all(recentCutoffUtc, mediumCutoffUtc, recentCutoffUtc, mediumCutoffUtc);
   } finally {
     db.close();
   }
+}
+
+function sampleDashboardSeries(series) {
+  if (!Array.isArray(series) || series.length <= 18000) return series;
+  const intradayStartMs = Date.UTC(2012, 5, 27, 0, 0, 0);
+  const lastTime = parseLocalTimestamp(series.at(-1)?.time).getTime();
+  if (!Number.isFinite(lastTime)) return series;
+  const recentFullCutoffMs = lastTime - 30 * 24 * 60 * 60 * 1000;
+  const mediumCutoffMs = lastTime - 365 * 24 * 60 * 60 * 1000;
+  return series.filter((point) => {
+    const timeMs = parseLocalTimestamp(point?.time).getTime();
+    if (!Number.isFinite(timeMs)) return false;
+    if (timeMs < intradayStartMs) return true;
+    const timePart = String(point?.time || "").slice(11, 16);
+    if (timeMs >= recentFullCutoffMs) return true;
+    if (timeMs >= mediumCutoffMs) {
+      return [
+        "00:00",
+        "02:00",
+        "04:00",
+        "06:00",
+        "08:00",
+        "10:00",
+        "12:00",
+        "14:00",
+        "16:00",
+        "18:00",
+        "20:00",
+        "22:00",
+      ].includes(timePart);
+    }
+    return timePart === "00:00" || timePart === "12:00";
+  });
 }
 
 async function loadJsonLines(filePath) {
@@ -1385,10 +1579,24 @@ function buildMovingAverageOverlay(chartSeries, dailyRows) {
 
 function computeIntradayStats(rows) {
   const normalized = Array.isArray(rows) ? rows.slice(-288) : [];
+  const recentRows = normalized.slice(-144);
   return {
     sma6: timedMovingAverage(normalized, 6 * 60),
     sma24: timedMovingAverage(normalized, 24 * 60),
+    recentLow: minimumPrice(recentRows),
+    latestTimestampLocal: normalized.at(-1)?.timestampLocal ?? null,
   };
+}
+
+function minimumPrice(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  let minimum = Infinity;
+  for (const row of rows) {
+    if (Number.isFinite(row?.price)) {
+      minimum = Math.min(minimum, row.price);
+    }
+  }
+  return Number.isFinite(minimum) ? minimum : null;
 }
 
 function timedMovingAverage(rows, windowMinutes) {
@@ -1457,7 +1665,7 @@ function chooseBacktestDecision(row, config) {
     { sma24: row?.price },
     config
   );
-  return chooseTargetPositionFromProfile(profile, config);
+  return chooseTargetPositionFromProfile(profile, config, { currentRatio: 0 });
 }
 
 function movingAverage(rows, endIndex, length, key) {

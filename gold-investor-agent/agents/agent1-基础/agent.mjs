@@ -36,25 +36,63 @@ const FILES = {
 const DEFAULT_CONFIG = {
   initialCapital: 100000,
   sellFeePerGram: 4,
-  minTradeCny: 2000,
-  rebalanceBufferRatio: 0.05,
-  minNetTrimPnlCny: 80,
-  minNetTrimPnlPerGram: 1.6,
-  minHoursBeforeNormalTrim: 8,
-  targetRatioCautious: 0.12,
-  targetRatioProbe: 0.28,
-  targetRatioBalanced: 0.45,
-  targetRatioStrong: 0.55,
-  scoreExitThreshold: 24,
-  scoreProbeThreshold: 48,
-  scoreBalancedThreshold: 56,
+  minTradeCny: 5200,
+  rebalanceBufferRatio: 0.075,
+  minNetTrimPnlCny: 220,
+  minNetTrimPnlPerGram: 3.2,
+  minHoursBeforeNormalTrim: 96,
+  cooldownBypassNetTrimPnlCny: 900,
+  cooldownBypassNetTrimPnlPerGram: 6.5,
+  targetRatioCautious: 0.08,
+  targetRatioProbe: 0.24,
+  targetRatioBalanced: 0.52,
+  targetRatioStrong: 0.72,
+  scoreExitThreshold: 32,
+  scoreProbeThreshold: 46,
+  scoreBalancedThreshold: 58,
   scoreStrongThreshold: 70,
-  longTrendExitPct: 0.97,
+  longTrendExitPct: 0.985,
+  flowRiskOffPriceBelowSma60Pct: 0.989,
+  flowRiskOffEtfRoc20Pct: -0.045,
+  sharpDropDefenseDailySma20Pct: 0.975,
+  sharpDropDefenseDailySma60Pct: 0.985,
+  sharpDropDefenseIntradayPremiumPct: -0.018,
+  sharpDropDefenseRatio: 0.16,
+  sharpDropReboundRecoveryPct: 0.025,
+  sharpDropReboundNeedAboveSma24Pct: 1.002,
+  sharpDropReboundDailySma20Pct: 0.99,
+  sharpDropReboundRatio: 0.3,
+  reentryCooldownHoursAfterDefense: 96,
+  reentryNeedScoreAfterDefense: 60,
+  reentryNeedAdviceScoreAfterDefense: 1,
+  enableSharpDropTacticalRules: false,
+  drawdownRiskOffPriceBelowSma20Pct: 0.965,
+  drawdownRiskOffPriceBelowSma60Pct: 0.985,
+  peakRolloverRiskOffPriceBelowRecentHigh5Pct: 0.945,
+  peakRolloverRiskOffIntradayPremiumPct: -0.0015,
+  peakRolloverSeverePriceBelowRecentHigh5Pct: 0.905,
+  bandUpgradeMarginPoints: 8,
+  bandDowngradeMarginPoints: 16,
+  cnEtfStrongRoc20Pct: 0.03,
+  cnEtfWeakRoc20Pct: -0.05,
+  cnEtfStrongTurnoverRatio20: 1.08,
+  cnEtfWeakTurnoverRatio20: 0.84,
+  cnEtfRiskOffTurnoverRatio20: 1.28,
+  cnEtfPriceSupportPct: 0.998,
+  cnEtfAltStrongRoc20Pct: 0.018,
+  cnEtfAltWeakRoc20Pct: -0.04,
+  cnEtfAltStrongTurnoverRatio20: 1.05,
+  shfeStrongRoc20Pct: 0.02,
+  shfeWeakRoc20Pct: -0.05,
+  shfeStrongVolumeRatio20: 1.05,
+  shfeRiskOffVolumeRatio20: 1.2,
+  shfeStrongPremiumCny: 2,
+  shfeWeakPremiumCny: -6,
   dashboardLookbackDays: 180,
 };
 
 const STRATEGY_HISTORY = {
-  currentVersion: "v2.3.0",
+  currentVersion: "v2.6.0",
   versions: [
     {
       version: "v1.0.0",
@@ -137,6 +175,63 @@ const STRATEGY_HISTORY = {
       reason: "The base agent should still rebalance, but should not dump gold too quickly after buying unless risk protection is genuinely needed.",
       reasonZh: "基础版仍然需要调仓，但不应该在刚买入后不久就因为轻微回摆而卖出，除非确实进入需要防守的环境。",
     },
+    {
+      version: "v2.4.0",
+      createdAt: "2026-03-20 09:30:00",
+      updatedAt: "2026-03-20 09:30:00",
+      title: "Sharp Drop Defense And Rebound Rebuild",
+      titleZh: "急跌防守与反弹回补",
+      changes: [
+        "Add a live sharp-drop defense branch before the normal score ladder so deep breaks below daily SMA20/SMA60 can cut exposure earlier.",
+        "Add a rebound rebuild branch that allows reloading part of the trimmed position after a sharp-drop bounce reclaims the intraday average.",
+        "Expose the sharp-drop live diagnostics so intraday crash handling is easier to audit from the dashboard files.",
+      ],
+      changesZh: [
+        "在常规评分映射前增加急跌防守分支，当实时价格深度跌破日线 SMA20/SMA60 时可以提前降仓。",
+        "增加急跌后的反弹回补分支，当价格从急跌低点反弹并重新站回盘中均线时允许回补部分仓位。",
+        "把急跌相关诊断输出到面板数据里，便于后续核查实时决策逻辑。",
+      ],
+      reason: "The previous base strategy treated very sharp intraday sell-offs as ordinary pullbacks. It needs a dedicated defense-and-rebuild path for crash-like moves.",
+      reasonZh: "上一版基础策略把很急的盘中跳水仍然当成普通回撤处理，需要单独增加一条急跌防守与反弹回补路径。",
+    },
+    {
+      version: "v2.5.0",
+      createdAt: "2026-03-21 13:10:00",
+      updatedAt: "2026-03-21 13:10:00",
+      title: "Medium-Term Trend With Domestic Flow Filters",
+      titleZh: "中线趋势主导与资金过滤",
+      changes: [
+        "Shift Agent1 back to a medium-term trend allocator led by price structure and intraday positioning.",
+        "Use domestic gold ETF flow and macro proxies mostly as risk filters and exposure caps instead of primary triggers.",
+        "Increase hysteresis, minimum trim edge and minimum trade size to avoid fee-heavy mid-range churning.",
+      ],
+      changesZh: [
+        "把 Agent1 收敛回更纯粹的中线趋势配置器，由价格结构和盘中位置主导交易。",
+        "国内黄金 ETF 资金与宏观代理更多作为风险过滤和仓位上限控制，而不是直接主导加减仓。",
+        "提高滞回、最小利润和最小交易额，减少中间区间来回切换带来的手续费磨损。",
+      ],
+      reason: "Feature ablation on the extended high-resolution history showed price plus intraday timing was the real driver, while macro-style inputs mostly added churn.",
+      reasonZh: "扩展后的高频历史消融测试显示，真正支撑 Agent1 的是价格趋势和盘中择时，宏观类输入当前更多是在制造来回调仓。",
+    },
+    {
+      version: "v2.6.0",
+      createdAt: "2026-03-21 18:40:00",
+      updatedAt: "2026-03-21 18:40:00",
+      title: "Mid-Term Trend Core With Domestic Caps",
+      titleZh: "中线趋势主轴与国内资金上限",
+      changes: [
+        "Rebuild the score around medium-term trend and intraday location instead of letting fast filters dominate every rebalance.",
+        "Use domestic ETF and SHFE signals primarily as exposure caps and risk filters.",
+        "Increase hysteresis, trim thresholds and post-defense reentry requirements so the base agent behaves like a steadier swing allocator.",
+      ],
+      changesZh: [
+        "把评分主轴重新收回到中线趋势和盘中位置，不再让快变过滤器主导每一次调仓。",
+        "把国内 ETF 与沪金信号主要用于仓位上限和风险过滤。",
+        "提高滞回、止盈门槛和防守后再入场要求，让基础版更像稳扎稳打的中线配置器。",
+      ],
+      reason: "The previous revision still reacted too often to mixed fast signals. This version rebuilds Agent1 as a calmer medium-term allocator while keeping domestic filters as safety rails.",
+      reasonZh: "上一版仍然会被混杂的快变信号频繁推着走。这一版把 Agent1 收回到更沉稳的中线配置器，同时保留国内资金过滤作为安全护栏。",
+    },
   ],
 };
 
@@ -147,36 +242,37 @@ const STRATEGY = {
   name: "Composite Multi-Signal Gold Allocation",
   nameZh: "多信号综合黄金配置策略",
   description: "Blend long-term trend, macro proxies, real yield and intraday extension into a target-position model.",
-  descriptionZh: "把长期趋势、美元与 GLD 代理、真实利率和盘中偏离度合并成综合评分，再映射为目标仓位。",
+  descriptionZh: "以长期价格趋势和盘中位置为主做中线配置，国内黄金 ETF 资金与宏观代理更多作为风险过滤和仓位上限控制。",
   buyRule: [
     "daily composite score >= 48",
     "price stays above the long-term trend floor",
-    "macro pressure is not sharply adverse",
+    "domestic flow and macro filters do not cap exposure",
     "intraday extension is not overheated",
   ],
   sellRule: [
-    "daily composite score < 24",
-    "or price < SMA200 * 0.97",
-    "or short-term trend rolls over with macro pressure",
+    "daily composite score < 35",
+    "or price loses the long-term trend floor",
+    "or domestic flow turns weak while price falls back into the weak daily regime",
   ],
   buyRuleZh: [
     "综合评分达到 48 分以上。",
     "价格维持在长期趋势底线之上。",
-    "宏观压力没有明显转空。",
+    "国内资金与宏观过滤未触发明显风险约束。",
     "盘中位置没有过热。",
   ],
   sellRuleZh: [
-    "综合评分跌破 24 分。",
-    "或者价格跌破 SMA200 的 97%。",
-    "或者短期趋势转弱且宏观压力同步变差。",
+    "综合评分跌破 35 分。",
+    "或者价格跌破长期趋势底线。",
+    "或者国内资金确认转弱且价格重新落回日线弱势区间。",
+    "或者实时价格深跌破日线 SMA20/SMA60 时，先减到防守仓；若急跌后重新站回盘中均线，再回补到反弹仓。",
   ],
   scoreMethodZh: [
-    "综合评分 = 趋势分 + 宏观分 + 盘中位置分 + 追踪建议分，最后截断到 0 到 100 分。",
-    "趋势分 0 到 38：价格站上 SMA200、SMA20 上穿 SMA60、价格站上 SMA20 会加分；若价格跌破长期趋势保护带会扣分。",
-    "宏观分 0 到 32：综合 UUP 20 日变动、GLD 20 日变动和 10 年期实际利率，美元走弱、GLD 走强、实际利率偏低时加分。",
-    "盘中位置分 2 到 14：比较实时金价和盘中 SMA24 的偏离，位置越低越容易加分，过热则降分。",
-    "追踪建议分 0 到 14：读取高频建议、日频建议和方向描述，偏多加分，观望或转弱减分。",
-    "仓位映射：48 分以上才允许进入试探仓，56 分以上进入中等偏积极仓，70 分以上才进入强势仓；低于 24 分明显防守。",
+    "综合评分 = 趋势分 + 资金过滤分 + 盘中位置分 + 追踪建议分，最后截断到 0 到 100 分。",
+    "趋势分是主轴：价格站上 SMA200、SMA20 站上 SMA60、价格重新站上短中期均线时加分；跌回长期趋势保护带会扣分。",
+    "资金过滤分不再主导节奏，而是主要根据国内黄金 ETF 的 20 日动量、相对放量和价格是否站稳 ETF 均线做加减分，同时只对极端美元和实际利率做轻量修正。",
+    "盘中位置分继续负责择时：实时价格相对盘中 SMA24 越低，越适合中线仓位回补；明显过热则抑制追价。",
+    "追踪建议分只做辅助确认，权重比过去更小，避免文本信号把中线策略带成高频来回调仓。",
+    "仓位映射：35 分以下偏防守，53 分以上建立试探仓，61 分以上进入中线主仓，75 分以上才允许高配仓位；若国内资金偏弱，高配仓会被自动压回。",
   ],
 };
 
@@ -187,13 +283,14 @@ await mkdir(OUT_DIR, { recursive: true });
 const CONFIG = await loadStrategyConfig(FILES.strategyConfig, DEFAULT_CONFIG, {
   agentName: "agent1-基础",
   strategyVersion: STRATEGY_HISTORY.currentVersion,
-  description: "基础版自动策略参数。修改后会同时影响历史回测与实时决策。",
+  description: "中线趋势主导参数。以价格趋势和高频位置为主，国内 ETF 资金与宏观代理更多作为风险过滤与仓位上限控制。",
 });
 
 const latest = JSON.parse(cleanText(await readFile(INPUTS.latest, "utf8")));
 const intradayTape = await loadJsonLines(INPUTS.intradayJsonl);
 const dailyRows = enrichDailyRows(loadDailyRows(INPUTS.dailyDb));
-const intradayRows = loadIntradayRows(INPUTS.intradayDb);
+const rawIntradayRows = loadIntradayRows(INPUTS.intradayDb);
+const intradayRows = mergeIntradaySeries(rawIntradayRows, intradayTape, latest);
 
 const backtest = runBacktest(dailyRows, CONFIG);
 const persisted = await loadPersistedState();
@@ -277,6 +374,15 @@ function applyChineseStrategyText() {
         "在考虑卖出手续费的历史验证后，收紧弱势区间退出、适度降低强势区间目标仓位。",
       ],
       reason: "上一版虽然用了综合评分，但阈值和映射仍然偏松散。v2.2.0 把决策路径显式化，并进一步按手续费约束收紧。",
+    }],
+    ["v2.6.0", {
+      title: "中线趋势主轴与国内资金上限",
+      changes: [
+        "把评分主轴重新收回到中线趋势和盘中位置，不再让快变过滤器主导每一次调仓。",
+        "把国内 ETF 与沪金信号主要用于仓位上限和风险过滤。",
+        "提高滞回、止盈门槛和防守后再入场要求，让基础版更像稳扎稳打的中线配置器。",
+      ],
+      reason: "上一版仍然会被混杂的快变信号频繁推着走。这一版把 Agent1 收回到更沉稳的中线配置器，同时保留国内资金过滤作为安全护栏。",
     }],
   ]);
 
@@ -363,7 +469,7 @@ async function loadPersistedState() {
 }
 
 function decideAndApply(context) {
-  const latestDaily = context.dailyRows.at(-1);
+  const latestDaily = buildLiveDailyContextRow(context.dailyRows.at(-1), context.latest);
   const intradayStats = computeIntradayStats(context.intradayRows);
   const currentPortfolio = normalizePortfolio(context.persisted.portfolio, context.config.initialCapital);
   const currentPrice = round4(context.latest.priceCnyPerGram);
@@ -392,7 +498,10 @@ function decideAndApply(context) {
         latest: context.latest,
         portfolio: currentPortfolio,
         currentPrice,
-        target: chooseCompositeTargetPositionRatio(context.latest, latestDaily, intradayStats, context.config),
+        target: chooseCompositeTargetPositionRatio(context.latest, latestDaily, intradayStats, context.config, {
+          currentRatio: currentPositionRatio(currentPortfolio, currentPrice, context.config.sellFeePerGram),
+          tradeLog: context.persisted.tradeLog,
+        }),
         recentTrade: getLatestTrade(context.persisted.tradeLog),
         config: context.config,
         diagnostics: buildDiagnostics(context.latest, latestDaily, intradayStats),
@@ -440,6 +549,17 @@ function decideAndApply(context) {
     tradeLog,
     decisionHistory: appendIfNewSnapshot(context.persisted.decisionHistory, decisionEntry),
     portfolioHistory: appendIfNewSnapshot(context.persisted.portfolioHistory, portfolioEntry),
+  };
+}
+
+function buildLiveDailyContextRow(latestDaily, latest) {
+  if (!latestDaily) return latestDaily;
+  const currentPrice = Number(latest?.priceCnyPerGram);
+  if (!Number.isFinite(currentPrice)) return latestDaily;
+  return {
+    ...latestDaily,
+    date: typeof latest?.checkedAtLocal === "string" ? latest.checkedAtLocal.slice(0, 10) : latestDaily.date,
+    price: currentPrice,
   };
 }
 
@@ -637,7 +757,23 @@ function buildDiagnostics(latest, latestDaily, intradayStats) {
   return {
     latestHighFrequencyAdvice: latest.highFrequencyAdvice,
     latestDailyAdvice: latest.dailyAdvice,
+    dailyContextDate: latestDaily?.date ?? null,
+    dailyContextPrice: Number.isFinite(latestDaily?.price) ? round4(latestDaily.price) : null,
+    cnGoldEtfClose: Number.isFinite(latestDaily?.cnGoldEtfClose) ? round4(latestDaily.cnGoldEtfClose) : null,
+    cnGoldEtfRoc20: Number.isFinite(latestDaily?.cnGoldEtfRoc20) ? round4(latestDaily.cnGoldEtfRoc20) : null,
+    cnGoldEtfTurnoverRatio20: Number.isFinite(latestDaily?.cnGoldEtfTurnoverRatio20) ? round4(latestDaily.cnGoldEtfTurnoverRatio20) : null,
+    cnGoldEtfAltClose: Number.isFinite(latestDaily?.cnGoldEtfAltClose) ? round4(latestDaily.cnGoldEtfAltClose) : null,
+    cnGoldEtfAltRoc20: Number.isFinite(latestDaily?.cnGoldEtfAltRoc20) ? round4(latestDaily.cnGoldEtfAltRoc20) : null,
+    cnGoldEtfAltTurnoverRatio20: Number.isFinite(latestDaily?.cnGoldEtfAltTurnoverRatio20) ? round4(latestDaily.cnGoldEtfAltTurnoverRatio20) : null,
+    shfeAuMainClose: Number.isFinite(latestDaily?.shfeAuMainClose) ? round4(latestDaily.shfeAuMainClose) : null,
+    shfeAuMainRoc20: Number.isFinite(latestDaily?.shfeAuMainRoc20) ? round4(latestDaily.shfeAuMainRoc20) : null,
+    shfeAuMainVolumeRatio20: Number.isFinite(latestDaily?.shfeAuMainVolumeRatio20) ? round4(latestDaily.shfeAuMainVolumeRatio20) : null,
+    shfeSpotPremiumCnyPerGram: Number.isFinite(latestDaily?.shfeSpotPremiumCnyPerGram) ? round4(latestDaily.shfeSpotPremiumCnyPerGram) : null,
     intradaySma24: intradayStats.sma24 ? round4(intradayStats.sma24) : null,
+    intradayPremiumToSma24: Number.isFinite(profile.intradayPremiumToSma24) ? round4(profile.intradayPremiumToSma24) : null,
+    intradayLatestAtLocal: intradayStats.latestTimestampLocal ?? null,
+    intradayRecentLow: Number.isFinite(intradayStats.recentLow) ? round4(intradayStats.recentLow) : null,
+    reboundFromRecentLowPct: Number.isFinite(profile.reboundFromRecentLowPct) ? round4(profile.reboundFromRecentLowPct) : null,
     bullishDaily: isBullishDailySetup(latestDaily),
     crossDown: isCrossDown(latestDaily),
     compositeScore: profile.score,
@@ -645,28 +781,190 @@ function buildDiagnostics(latest, latestDaily, intradayStats) {
     macroScore: profile.macroScore,
     intradayScore: profile.intradayScore,
     adviceScore: profile.adviceScore,
+    trendNormalized: Number.isFinite(profile.trendNormalized) ? round4(profile.trendNormalized) : null,
+    intradayNormalized: Number.isFinite(profile.intradayNormalized) ? round4(profile.intradayNormalized) : null,
+    adviceNormalized: Number.isFinite(profile.adviceNormalized) ? round4(profile.adviceNormalized) : null,
+    sharpDropDefense: profile.sharpDropDefense,
+    sharpDropRebound: profile.sharpDropRebound,
+    drawdownRiskOff: profile.drawdownRiskOff,
     summary: profile.summary,
   };
 }
 
-function chooseCompositeTargetPositionRatio(latest, latestDaily, intradayStats, config) {
+function chooseCompositeTargetPositionRatio(latest, latestDaily, intradayStats, config, options = {}) {
   const profile = buildCompositeSignalProfile(latest, latestDaily, intradayStats, config);
-  return chooseTargetPositionFromProfile(profile, config);
+  return chooseTargetPositionFromProfile(profile, config, {
+    currentRatio: options.currentRatio,
+    tradeLog: options.tradeLog,
+    latest,
+  });
 }
 
 function buildCompositeSignalProfile(latest, latestDaily, intradayStats, config = CONFIG) {
   const trendScore = scoreTrend(latestDaily);
-  const macroScore = scoreMacro(latestDaily);
+  const macroScore = scoreMacro(latestDaily, config);
   const intradayScore = scoreIntraday(latest, intradayStats);
   const adviceScore = scoreAdvice(latest);
-  const score = clamp(Math.round(trendScore + macroScore + intradayScore + adviceScore), 0, 100);
   const crossDown = isCrossDown(latestDaily);
+  const intradayPremiumToSma24 = Number.isFinite(intradayStats.sma24)
+    ? latest.priceCnyPerGram / intradayStats.sma24 - 1
+    : null;
+  const reboundFromRecentLowPct = Number.isFinite(intradayStats.recentLow) && intradayStats.recentLow > 0
+    ? latest.priceCnyPerGram / intradayStats.recentLow - 1
+    : null;
+  const priceVsSma20 = latestDaily && Number.isFinite(latestDaily.sma20) ? latestDaily.price / latestDaily.sma20 - 1 : null;
+  const priceVsSma60 = latestDaily && Number.isFinite(latestDaily.sma60) ? latestDaily.price / latestDaily.sma60 - 1 : null;
+  const priceVsRecentHigh5 = latestDaily && Number.isFinite(latestDaily.recentHigh5) && latestDaily.recentHigh5 > 0
+    ? latestDaily.price / latestDaily.recentHigh5 - 1
+    : null;
+  const etfPrimaryStrong = Boolean(
+    latestDaily
+      && Number.isFinite(latestDaily.cnGoldEtfRoc20)
+      && latestDaily.cnGoldEtfRoc20 >= config.cnEtfStrongRoc20Pct
+      && Number.isFinite(latestDaily.cnGoldEtfClose)
+      && Number.isFinite(latestDaily.cnGoldEtfSma20)
+      && latestDaily.cnGoldEtfClose >= latestDaily.cnGoldEtfSma20 * config.cnEtfPriceSupportPct
+  );
+  const etfAltStrong = Boolean(
+    latestDaily
+      && Number.isFinite(latestDaily.cnGoldEtfAltRoc20)
+      && latestDaily.cnGoldEtfAltRoc20 >= config.cnEtfAltStrongRoc20Pct
+      && Number.isFinite(latestDaily.cnGoldEtfAltClose)
+      && Number.isFinite(latestDaily.cnGoldEtfAltSma20)
+      && latestDaily.cnGoldEtfAltClose >= latestDaily.cnGoldEtfAltSma20 * config.cnEtfPriceSupportPct
+  );
+  const shfeStrong = Boolean(
+    latestDaily
+      && Number.isFinite(latestDaily.shfeAuMainRoc20)
+      && latestDaily.shfeAuMainRoc20 >= config.shfeStrongRoc20Pct
+      && Number.isFinite(latestDaily.shfeAuMainVolumeRatio20)
+      && latestDaily.shfeAuMainVolumeRatio20 >= config.shfeStrongVolumeRatio20
+      && Number.isFinite(latestDaily.shfeSpotPremiumCnyPerGram)
+      && latestDaily.shfeSpotPremiumCnyPerGram >= config.shfeStrongPremiumCny
+  );
+  const domesticStrongCount = [etfPrimaryStrong, etfAltStrong, shfeStrong].filter(Boolean).length;
+  const etfPrimaryWeak = Boolean(
+    latestDaily
+      && Number.isFinite(latestDaily.cnGoldEtfRoc20)
+      && latestDaily.cnGoldEtfRoc20 <= config.cnEtfWeakRoc20Pct
+  );
+  const etfAltWeak = Boolean(
+    latestDaily
+      && Number.isFinite(latestDaily.cnGoldEtfAltRoc20)
+      && latestDaily.cnGoldEtfAltRoc20 <= config.cnEtfAltWeakRoc20Pct
+  );
+  const shfeWeak = Boolean(
+    latestDaily
+      && (
+        (Number.isFinite(latestDaily.shfeAuMainRoc20) && latestDaily.shfeAuMainRoc20 <= config.shfeWeakRoc20Pct)
+        || (
+          Number.isFinite(latestDaily.shfeAuMainVolumeRatio20)
+          && latestDaily.shfeAuMainVolumeRatio20 >= config.shfeRiskOffVolumeRatio20
+          && Number.isFinite(latestDaily.shfeSpotPremiumCnyPerGram)
+          && latestDaily.shfeSpotPremiumCnyPerGram <= config.shfeWeakPremiumCny
+        )
+      )
+  );
+  const domesticWeakCount = [etfPrimaryWeak, etfAltWeak, shfeWeak].filter(Boolean).length;
+  const weakDomesticFlow = Boolean(
+    latestDaily
+      && (
+        domesticWeakCount >= 3
+        || (
+          domesticWeakCount >= 2
+          && Number.isFinite(latestDaily.shfeSpotPremiumCnyPerGram)
+          && latestDaily.shfeSpotPremiumCnyPerGram <= config.shfeWeakPremiumCny
+        )
+      )
+  );
+  const strongDomesticFlow = domesticStrongCount >= 2;
   const longTrendBroken = Boolean(
     latestDaily
       && Number.isFinite(latestDaily.sma200)
       && latestDaily.price < latestDaily.sma200 * config.longTrendExitPct
   );
-  const hardExit = longTrendBroken || (crossDown && score < config.scoreProbeThreshold);
+  const flowRiskOff = Boolean(
+    latestDaily
+      && Number.isFinite(priceVsSma60)
+      && priceVsSma60 <= config.flowRiskOffPriceBelowSma60Pct - 1
+      && weakDomesticFlow
+      && Number.isFinite(latestDaily.shfeSpotPremiumCnyPerGram)
+      && latestDaily.shfeSpotPremiumCnyPerGram <= config.shfeWeakPremiumCny
+  );
+  const drawdownRiskOff = Boolean(
+    latestDaily
+      && !longTrendBroken
+      && Number.isFinite(priceVsSma20)
+      && Number.isFinite(priceVsSma60)
+      && priceVsSma20 <= config.drawdownRiskOffPriceBelowSma20Pct - 1
+      && priceVsSma60 <= config.drawdownRiskOffPriceBelowSma60Pct - 1
+  );
+  const peakRolloverRiskOff = Boolean(
+    latestDaily
+      && !longTrendBroken
+      && Number.isFinite(priceVsRecentHigh5)
+      && Number.isFinite(intradayPremiumToSma24)
+      && priceVsRecentHigh5 <= config.peakRolloverRiskOffPriceBelowRecentHigh5Pct - 1
+      && intradayPremiumToSma24 <= config.peakRolloverRiskOffIntradayPremiumPct
+  );
+  const peakRolloverSevere = Boolean(
+    latestDaily
+      && !longTrendBroken
+      && Number.isFinite(priceVsRecentHigh5)
+      && priceVsRecentHigh5 <= config.peakRolloverSeverePriceBelowRecentHigh5Pct - 1
+  );
+  const trendNormalized = (() => {
+    if (!latestDaily) return 0;
+    if (longTrendBroken) return -1;
+    const raw = clamp((trendScore - 19) / 19, -1, 1);
+    if (crossDown && raw > 0.45) return 0.4;
+    return raw;
+  })();
+  const domesticNormalized = (() => {
+    if (weakDomesticFlow) return -0.18;
+    if (strongDomesticFlow) return 0.06;
+    return clamp((macroScore - 5) / 5, -0.05, 0.08);
+  })();
+  const intradayNormalized = 0;
+  const adviceNormalized = 0;
+  const score = clamp(
+    Math.round(
+      50
+      + trendNormalized * 32
+      + domesticNormalized * 2
+    ),
+    0,
+    100
+  );
+  const hardExit = Boolean(
+    longTrendBroken
+      || (
+        crossDown
+        && Number.isFinite(priceVsSma20)
+        && priceVsSma20 <= -0.025
+        && Number.isFinite(priceVsSma60)
+        && priceVsSma60 <= -0.015
+        && (score < config.scoreExitThreshold || weakDomesticFlow)
+      )
+  );
+  const sharpDropDefense = config.enableSharpDropTacticalRules
+    && !hardExit
+    && Number.isFinite(intradayPremiumToSma24)
+    && Number.isFinite(priceVsSma20)
+    && Number.isFinite(priceVsSma60)
+    && intradayPremiumToSma24 <= config.sharpDropDefenseIntradayPremiumPct
+    && latestDaily.price <= latestDaily.sma20 * config.sharpDropDefenseDailySma20Pct
+    && latestDaily.price <= latestDaily.sma60 * config.sharpDropDefenseDailySma60Pct
+    && weakDomesticFlow;
+  const sharpDropRebound = config.enableSharpDropTacticalRules
+    && !hardExit
+    && !sharpDropDefense
+    && Number.isFinite(reboundFromRecentLowPct)
+    && reboundFromRecentLowPct >= config.sharpDropReboundRecoveryPct
+    && Number.isFinite(intradayStats.sma24)
+    && latest.priceCnyPerGram >= intradayStats.sma24 * config.sharpDropReboundNeedAboveSma24Pct
+    && Number.isFinite(latestDaily?.sma20)
+    && latestDaily.price <= latestDaily.sma20 * config.sharpDropReboundDailySma20Pct;
 
   return {
     score,
@@ -674,19 +972,42 @@ function buildCompositeSignalProfile(latest, latestDaily, intradayStats, config 
     macroScore,
     intradayScore,
     adviceScore,
-    crossDown,
-    longTrendBroken,
-    hardExit,
-    summary: [
-      trendScore >= 28 ? "日线趋势偏强" : trendScore >= 18 ? "日线趋势中性" : "日线趋势偏弱",
-      macroScore >= 20 ? "宏观压制较轻" : macroScore >= 12 ? "宏观中性" : "宏观压力偏大",
-      intradayScore >= 10 ? "盘中位置不高" : intradayScore >= 6 ? "盘中位置中性" : "盘中过热或偏弱",
-      adviceScore >= 10 ? "追踪建议偏多" : adviceScore >= 6 ? "追踪建议中性" : "追踪建议谨慎",
-    ].join("，"),
-  };
-}
+      trendNormalized,
+      intradayNormalized,
+      domesticNormalized,
+      adviceNormalized,
+      crossDown,
+      longTrendBroken,
+      weakDomesticFlow,
+      strongDomesticFlow,
+      domesticStrongCount,
+      domesticWeakCount,
+      flowRiskOff,
+      drawdownRiskOff,
+      peakRolloverRiskOff,
+      peakRolloverSevere,
+      hardExit,
+    intradayPremiumToSma24,
+    reboundFromRecentLowPct,
+    priceVsRecentHigh5,
+    sharpDropDefense,
+      sharpDropRebound,
+      summary: [
+        trendScore >= 30 ? "日线趋势偏强" : trendScore >= 18 ? "日线趋势中性" : "日线趋势偏弱",
+        strongDomesticFlow ? "国内资金确认偏强" : weakDomesticFlow ? "国内资金偏弱" : macroScore >= 7 ? "国内资金中性" : "国内资金偏弱",
+        sharpDropDefense ? "急跌防守触发" : sharpDropRebound ? "急跌后正在修复" : intradayScore >= 10 ? "盘中位置不高" : intradayScore >= 6 ? "盘中位置中性" : "盘中过热或偏弱",
+        adviceScore >= 2 ? "追踪建议偏多" : adviceScore >= 1 ? "追踪建议中性" : "追踪建议谨慎",
+      ].join("，"),
+    };
+  }
 
-function chooseTargetPositionFromProfile(profile, config) {
+function chooseTargetPositionFromProfile(profile, config, options = {}) {
+  const currentRatio = Number.isFinite(options.currentRatio) ? options.currentRatio : 0;
+  const recentRiskOffSell = getLatestTradeMatching(
+    options.tradeLog,
+    (trade) => isSellAction(trade?.action) && isRiskOffDecisionKind(trade?.decisionKind)
+  );
+
   if (profile.hardExit) {
     return {
       ratio: 0,
@@ -696,52 +1017,177 @@ function chooseTargetPositionFromProfile(profile, config) {
     };
   }
 
-  if (profile.score >= config.scoreStrongThreshold) {
+  if (profile.sharpDropDefense) {
+    const defenseRatio = Math.min(currentRatio, config.sharpDropDefenseRatio);
     return {
-      ratio: config.targetRatioStrong,
-      decisionKind: "add-long",
-      reason: `综合评分 ${profile.score} 分，${profile.summary}，进入强势仓位。`,
+      ratio: defenseRatio,
+      decisionKind: "sharp-drop-defense",
+      reason: `综合评分 ${profile.score} 分，${profile.summary}，急跌防守条件已触发，先降到防守仓。`,
       profile,
     };
   }
 
-  if (profile.score >= config.scoreBalancedThreshold) {
+  if (shouldHoldDefensePosition(profile, options.latest, recentRiskOffSell, config)) {
+    const defenseRatio = Math.min(currentRatio, config.sharpDropDefenseRatio);
     return {
-      ratio: config.targetRatioBalanced,
-      decisionKind: "balanced-long",
-      reason: `综合评分 ${profile.score} 分，${profile.summary}，维持中等偏积极仓位。`,
+      ratio: defenseRatio,
+      decisionKind: "post-defense-hold",
+      reason: `综合评分 ${profile.score} 分，${profile.summary}，急跌防守后仍处于确认期，先维持防守仓等待重新确认。`,
       profile,
     };
   }
 
-  if (profile.score >= config.scoreProbeThreshold) {
-    return {
-      ratio: config.targetRatioProbe,
-      decisionKind: "probe-long",
-      reason: `综合评分 ${profile.score} 分，${profile.summary}，保留试探仓。`,
-      profile,
-    };
-  }
-
-  if (profile.score >= config.scoreExitThreshold) {
-    return {
-      ratio: config.targetRatioCautious,
-      decisionKind: "cautious-hold",
-      reason: `综合评分 ${profile.score} 分，${profile.summary}，收缩到轻仓观察。`,
-      profile,
-    };
-  }
-
+  const rawBand = chooseScoreBand(profile, config);
+  const currentBand = inferPositionBand(currentRatio, config);
+  const stableBand = applyFlowAwareBandCap(
+    stabilizeScoreBand(rawBand, currentBand, profile.score, config),
+    profile,
+    config
+  );
   return {
-    ratio: 0,
-    decisionKind: "stand-aside",
-    reason: `综合评分 ${profile.score} 分，${profile.summary}，暂时空仓等待。`,
+    ratio: stableBand.ratio,
+    decisionKind: stableBand.decisionKind,
+    reason: `综合评分 ${profile.score} 分，${profile.summary}，${stableBand.reasonSuffix}`,
     profile,
   };
 }
 
+function shouldHoldDefensePosition(profile, latest, recentRiskOffSell, config) {
+  if (profile.hardExit || !latest || !recentRiskOffSell) return false;
+  if (canRebuildAfterDefense(profile, latest, recentRiskOffSell, config)) return false;
+  const hoursSinceRiskOff = diffHours(recentRiskOffSell.checkedAt, latest.checkedAt);
+  return Number.isFinite(hoursSinceRiskOff) && hoursSinceRiskOff < config.reentryCooldownHoursAfterDefense;
+}
+
+function canRebuildAfterDefense(profile, latest, recentRiskOffSell, config) {
+  if (!latest || !recentRiskOffSell || !profile.sharpDropRebound) return false;
+  const hoursSinceRiskOff = diffHours(recentRiskOffSell.checkedAt, latest.checkedAt);
+  if (!Number.isFinite(hoursSinceRiskOff) || hoursSinceRiskOff < 0 || hoursSinceRiskOff > config.reentryCooldownHoursAfterDefense) {
+    return false;
+  }
+  return profile.score >= config.reentryNeedScoreAfterDefense
+    && profile.adviceScore >= config.reentryNeedAdviceScoreAfterDefense;
+}
+
+function chooseScoreBand(profile, config) {
+  if (profile.score >= config.scoreStrongThreshold) {
+    return {
+      id: "strong",
+      threshold: config.scoreStrongThreshold,
+      ratio: config.targetRatioStrong,
+      decisionKind: "add-long",
+      reasonSuffix: "进入强势仓位。",
+    };
+  }
+  if (profile.score >= config.scoreBalancedThreshold) {
+    return {
+      id: "balanced",
+      threshold: config.scoreBalancedThreshold,
+      ratio: config.targetRatioBalanced,
+      decisionKind: "balanced-long",
+      reasonSuffix: "维持中等偏积极仓位。",
+    };
+  }
+  if (profile.score >= config.scoreProbeThreshold) {
+    return {
+      id: "probe",
+      threshold: config.scoreProbeThreshold,
+      ratio: config.targetRatioProbe,
+      decisionKind: "probe-long",
+      reasonSuffix: "保留试探仓。",
+    };
+  }
+  if (profile.score >= config.scoreExitThreshold) {
+    return {
+      id: "cautious",
+      threshold: config.scoreExitThreshold,
+      ratio: config.targetRatioCautious,
+      decisionKind: "cautious-hold",
+      reasonSuffix: "收缩到轻仓观察。",
+    };
+  }
+  return {
+    id: "stand-aside",
+    threshold: 0,
+    ratio: 0,
+    decisionKind: "stand-aside",
+    reasonSuffix: "暂时空仓等待。",
+  };
+}
+
+function applyFlowAwareBandCap(band, profile, config) {
+  if (!band || !profile) return band;
+  if (profile.peakRolloverSevere) {
+    if (band.id === "strong") {
+      return chooseScoreBand({ score: config.scoreProbeThreshold }, config);
+    }
+    if (band.id === "balanced") {
+      return chooseScoreBand({ score: config.scoreExitThreshold }, config);
+    }
+    return band;
+  }
+  if (profile.peakRolloverRiskOff) {
+    if (band.id === "strong") {
+      return chooseScoreBand({ score: config.scoreBalancedThreshold }, config);
+    }
+    if (band.id === "balanced") {
+      return chooseScoreBand({ score: config.scoreProbeThreshold }, config);
+    }
+    return band;
+  }
+  if (profile.weakDomesticFlow) {
+    if (band.id === "strong") {
+      return chooseScoreBand({ score: config.scoreBalancedThreshold }, config);
+    }
+    if (band.id === "balanced" && profile.flowRiskOff) {
+      return chooseScoreBand({ score: config.scoreProbeThreshold }, config);
+    }
+    return band;
+  }
+  if (profile.drawdownRiskOff) {
+    if (band.id === "strong") {
+      return chooseScoreBand({ score: config.scoreProbeThreshold }, config);
+    }
+    if (band.id === "balanced") {
+      return chooseScoreBand({ score: config.scoreExitThreshold }, config);
+    }
+  }
+  return band;
+}
+
+function inferPositionBand(currentRatio, config) {
+  const cautiousBoundary = config.targetRatioCautious / 2;
+  const probeBoundary = (config.targetRatioCautious + config.targetRatioProbe) / 2;
+  const balancedBoundary = (config.targetRatioProbe + config.targetRatioBalanced) / 2;
+  const strongBoundary = (config.targetRatioBalanced + config.targetRatioStrong) / 2;
+  if (currentRatio >= strongBoundary) return chooseScoreBand({ score: config.scoreStrongThreshold }, config);
+  if (currentRatio >= balancedBoundary) return chooseScoreBand({ score: config.scoreBalancedThreshold }, config);
+  if (currentRatio >= probeBoundary) return chooseScoreBand({ score: config.scoreProbeThreshold }, config);
+  if (currentRatio >= cautiousBoundary) return chooseScoreBand({ score: config.scoreExitThreshold }, config);
+  return chooseScoreBand({ score: -1 }, config);
+}
+
+function stabilizeScoreBand(rawBand, currentBand, score, config) {
+  if (!rawBand || !currentBand || rawBand.id === currentBand.id) return rawBand;
+  const rank = {
+    "stand-aside": 0,
+    cautious: 1,
+    probe: 2,
+    balanced: 3,
+    strong: 4,
+  };
+  const rawRank = rank[rawBand.id] ?? 0;
+  const currentRank = rank[currentBand.id] ?? 0;
+  if (rawRank > currentRank) {
+    const upgradeThreshold = rawBand.threshold + config.bandUpgradeMarginPoints;
+    return score >= upgradeThreshold ? rawBand : currentBand;
+  }
+  const holdThreshold = currentBand.threshold - config.bandDowngradeMarginPoints;
+  return score < holdThreshold ? rawBand : currentBand;
+}
+
 function shouldSkipLowEdgeSell(decisionKind, realizedPnlCny, grams, config) {
-  if (isProtectiveDecisionKind(decisionKind) || !Number.isFinite(realizedPnlCny) || !Number.isFinite(grams) || grams <= 0) {
+  if (isRiskOffDecisionKind(decisionKind) || !Number.isFinite(realizedPnlCny) || !Number.isFinite(grams) || grams <= 0) {
     return false;
   }
   return realizedPnlCny < config.minNetTrimPnlCny
@@ -749,7 +1195,7 @@ function shouldSkipLowEdgeSell(decisionKind, realizedPnlCny, grams, config) {
 }
 
 function shouldDelayNormalTrim(decisionKind, latest, recentTrade, realizedPnlCny, grams, config) {
-  if (isProtectiveDecisionKind(decisionKind) || !recentTrade || !isBuyAction(recentTrade.action)) {
+  if (isRiskOffDecisionKind(decisionKind) || !recentTrade || !isBuyAction(recentTrade.action)) {
     return false;
   }
   if (canBypassTrimCooldown(realizedPnlCny, grams, config)) {
@@ -767,14 +1213,23 @@ function canBypassTrimCooldown(realizedPnlCny, grams, config) {
     && realizedPnlCny / grams >= config.cooldownBypassNetTrimPnlPerGram;
 }
 
-function isProtectiveDecisionKind(decisionKind) {
+function isRiskOffDecisionKind(decisionKind) {
   return decisionKind === "exit"
     || decisionKind === "stand-aside"
-    || decisionKind === "cautious-hold";
+    || decisionKind === "sharp-drop-defense";
 }
 
 function getLatestTrade(trades) {
   return Array.isArray(trades) && trades.length > 0 ? trades[trades.length - 1] : null;
+}
+
+function getLatestTradeMatching(trades, predicate) {
+  if (!Array.isArray(trades) || trades.length === 0) return null;
+  for (let index = trades.length - 1; index >= 0; index -= 1) {
+    const trade = trades[index];
+    if (predicate(trade)) return trade;
+  }
+  return null;
 }
 
 function diffHours(fromIso, toIso) {
@@ -788,20 +1243,51 @@ function scoreTrend(row) {
   if (!row || !Number.isFinite(row.price) || !Number.isFinite(row.sma20) || !Number.isFinite(row.sma60) || !Number.isFinite(row.sma200)) return 0;
   let score = 0;
   if (row.price > row.sma200) score += 16;
-  if (row.sma20 > row.sma60) score += 12;
-  if (row.price > row.sma20) score += 6;
-  if (Number.isFinite(row.prevSma20) && Number.isFinite(row.prevSma60) && row.prevSma20 <= row.prevSma60 && row.sma20 > row.sma60) score += 4;
-  if (row.price < row.sma200 * 0.99) score -= 12;
+  if (row.sma60 > row.sma200) score += 6;
+  if (row.sma20 > row.sma60) score += 8;
+  if (row.price > row.sma20) score += 4;
+  if (Number.isFinite(row.prevSma20) && row.sma20 > row.prevSma20) score += 2;
+  if (Number.isFinite(row.prevSma60) && row.sma60 > row.prevSma60) score += 2;
+  if (row.price < row.sma60 * 0.985) score -= 8;
+  if (row.price < row.sma200 * 0.995) score -= 12;
   return clamp(score, 0, 38);
 }
 
-function scoreMacro(row) {
+function scoreMacro(row, config = CONFIG) {
   if (!row) return 0;
-  let score = 14;
-  if (Number.isFinite(row.uupRoc20)) score += row.uupRoc20 < -0.01 ? 7 : row.uupRoc20 < 0.03 ? 3 : -8;
-  if (Number.isFinite(row.gldRoc20)) score += row.gldRoc20 > 0.01 ? 6 : row.gldRoc20 > -0.02 ? 2 : -6;
-  if (Number.isFinite(row.realYield10Y)) score += row.realYield10Y < 1.7 ? 5 : row.realYield10Y < 2.05 ? 1 : -7;
-  return clamp(score, 0, 32);
+  let score = 6;
+  const etfPrimaryStrong = Number.isFinite(row.cnGoldEtfRoc20)
+    && row.cnGoldEtfRoc20 >= config.cnEtfStrongRoc20Pct
+    && Number.isFinite(row.cnGoldEtfClose)
+    && Number.isFinite(row.cnGoldEtfSma20)
+    && row.cnGoldEtfClose >= row.cnGoldEtfSma20 * config.cnEtfPriceSupportPct;
+  const etfAltStrong = Number.isFinite(row.cnGoldEtfAltRoc20)
+    && row.cnGoldEtfAltRoc20 >= config.cnEtfAltStrongRoc20Pct
+    && Number.isFinite(row.cnGoldEtfAltClose)
+    && Number.isFinite(row.cnGoldEtfAltSma20)
+    && row.cnGoldEtfAltClose >= row.cnGoldEtfAltSma20 * config.cnEtfPriceSupportPct;
+  const shfeStrong = Number.isFinite(row.shfeAuMainRoc20)
+    && row.shfeAuMainRoc20 >= config.shfeStrongRoc20Pct
+    && Number.isFinite(row.shfeAuMainClose)
+    && Number.isFinite(row.shfeAuMainSma20)
+    && row.shfeAuMainClose >= row.shfeAuMainSma20
+    && Number.isFinite(row.shfeSpotPremiumCnyPerGram)
+    && row.shfeSpotPremiumCnyPerGram >= config.shfeStrongPremiumCny;
+  const domesticStrongCount = [etfPrimaryStrong, etfAltStrong, shfeStrong].filter(Boolean).length;
+  if (domesticStrongCount >= 2) score += 2;
+  else if (domesticStrongCount === 1) score += 1;
+
+  const domesticRiskOff = Number.isFinite(row.shfeSpotPremiumCnyPerGram)
+    && row.shfeSpotPremiumCnyPerGram <= config.shfeWeakPremiumCny
+    && Number.isFinite(row.shfeAuMainVolumeRatio20)
+    && row.shfeAuMainVolumeRatio20 >= config.shfeRiskOffVolumeRatio20
+    && Number.isFinite(row.shfeAuMainRoc20)
+    && row.shfeAuMainRoc20 < 0;
+  if (domesticRiskOff) score -= 2;
+
+  if (Number.isFinite(row.uupRoc20)) score += row.uupRoc20 < -0.02 ? 1 : row.uupRoc20 > 0.05 ? -1 : 0;
+  if (Number.isFinite(row.realYield10Y)) score += row.realYield10Y < 1.55 ? 1 : row.realYield10Y > 2.4 ? -1 : 0;
+  return clamp(score, 0, 10);
 }
 
 function scoreIntraday(latest, intradayStats) {
@@ -815,23 +1301,22 @@ function scoreIntraday(latest, intradayStats) {
 
 function scoreAdvice(latest) {
   const adviceText = `${latest?.highFrequencyAdvice || ""} ${latest?.dailyAdvice || ""} ${latest?.direction || ""}`;
-  let score = 8;
-  if (adviceText.includes("偏多")) score += 4;
-  if (adviceText.includes("中线偏多")) score += 2;
-  if (adviceText.includes("观望") || adviceText.includes("等待确认")) score -= 3;
-  if (adviceText.includes("偏空") || adviceText.includes("转弱")) score -= 6;
-  return clamp(score, 0, 14);
+  let score = 1;
+  if (adviceText.includes("中线偏多")) score += 1;
+  if (adviceText.includes("偏多") || adviceText.includes("强势")) score += 1;
+  if (adviceText.includes("观望") || adviceText.includes("等待确认")) score -= 1;
+  if (adviceText.includes("偏空") || adviceText.includes("转弱")) score -= 1;
+  return clamp(score, 0, 2);
 }
 
 function buildDashboardData({ latest, dailyRows, intradayRows, intradayTape, backtest, liveDecision, tradeLog, decisionHistory, portfolioHistory }) {
   const chartSeries = mergeChartSeries(dailyRows, intradayRows, intradayTape, latest);
   const normalizedTrades = normalizeTradeLog(tradeLog);
-  const normalizedChartSeries = chartSeries.map((row) => ({
+  const normalizedChartSeries = sampleDashboardSeries(chartSeries.map((row) => ({
     time: row.timestampLocal,
     date: row.timestampLocal.slice(0, 10),
     priceCnyPerGram: round4(row.price),
-  }));
-  const movingAverageSeries = buildMovingAverageOverlay(normalizedChartSeries, dailyRows);
+  })));
   const totalFeesCny = calculateTotalFees(normalizedTrades, CONFIG.sellFeePerGram);
   const summary = buildPortfolioSummary(liveDecision.portfolio, totalFeesCny, liveDecision.order.action);
 
@@ -855,7 +1340,6 @@ function buildDashboardData({ latest, dailyRows, intradayRows, intradayTape, bac
             value: round4(liveDecision.portfolio.averageCostCnyPerGram),
           }
         : null,
-      movingAverages: movingAverageSeries,
     },
     trades: normalizedTrades,
     decisions: decisionHistory.slice(-50),
@@ -1008,7 +1492,18 @@ function loadDailyRows(dbPath) {
         price_cny_per_gram AS price,
         gld_close AS gldClose,
         uup_close AS uupClose,
-        real_yield_10y AS realYield10Y
+        real_yield_10y AS realYield10Y,
+        cn_gold_etf_close AS cnGoldEtfClose,
+        cn_gold_etf_volume AS cnGoldEtfVolume,
+        cn_gold_etf_turnover AS cnGoldEtfTurnover,
+        cn_gold_etf_alt_close AS cnGoldEtfAltClose,
+        cn_gold_etf_alt_volume AS cnGoldEtfAltVolume,
+        cn_gold_etf_alt_turnover AS cnGoldEtfAltTurnover,
+        shfe_au_main_close AS shfeAuMainClose,
+        shfe_au_main_volume AS shfeAuMainVolume,
+        shfe_au_main_open_interest AS shfeAuMainOpenInterest,
+        shfe_au_main_open_interest_change AS shfeAuMainOpenInterestChange,
+        shfe_spot_premium_cny_per_gram AS shfeSpotPremiumCnyPerGram
       FROM daily_history
       WHERE price_cny_per_gram IS NOT NULL
       ORDER BY date
@@ -1021,17 +1516,70 @@ function loadDailyRows(dbPath) {
 function loadIntradayRows(dbPath) {
   const db = new DatabaseSync(dbPath, { readonly: true });
   try {
+    const recentCutoffUtc = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
+    const mediumCutoffUtc = Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000);
     return db.prepare(`
-      SELECT
-        timestamp_local AS timestampLocal,
-        price_cny_per_gram AS price
-      FROM intraday_history
-      WHERE price_cny_per_gram IS NOT NULL
-      ORDER BY timestamp_utc
-    `).all();
+      WITH sampled AS (
+        SELECT
+          timestamp_local AS timestampLocal,
+          price_cny_per_gram AS price,
+          timestamp_utc AS timestampUtc
+        FROM intraday_history
+        WHERE price_cny_per_gram IS NOT NULL
+          AND (
+            timestamp_utc >= ?
+            OR (
+              timestamp_utc >= ?
+              AND timestamp_utc < ?
+              AND substr(timestamp_local, 12, 5) IN ('00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00')
+            )
+            OR (
+              timestamp_local >= '2012-06-27 00:00:00'
+              AND timestamp_utc < ?
+              AND substr(timestamp_local, 12, 5) IN ('00:00', '12:00')
+            )
+          )
+      )
+      SELECT timestampLocal, price
+      FROM sampled
+      ORDER BY timestampUtc
+    `).all(recentCutoffUtc, mediumCutoffUtc, recentCutoffUtc, mediumCutoffUtc);
   } finally {
     db.close();
   }
+}
+
+function sampleDashboardSeries(series) {
+  if (!Array.isArray(series) || series.length <= 18000) return series;
+  const intradayStartMs = Date.UTC(2012, 5, 27, 0, 0, 0);
+  const lastTime = parseLocalTimestamp(series.at(-1)?.time).getTime();
+  if (!Number.isFinite(lastTime)) return series;
+  const recentFullCutoffMs = lastTime - 30 * 24 * 60 * 60 * 1000;
+  const mediumCutoffMs = lastTime - 365 * 24 * 60 * 60 * 1000;
+  return series.filter((point) => {
+    const timeMs = parseLocalTimestamp(point?.time).getTime();
+    if (!Number.isFinite(timeMs)) return false;
+    if (timeMs < intradayStartMs) return true;
+    const timePart = String(point?.time || "").slice(11, 16);
+    if (timeMs >= recentFullCutoffMs) return true;
+    if (timeMs >= mediumCutoffMs) {
+      return [
+        "00:00",
+        "02:00",
+        "04:00",
+        "06:00",
+        "08:00",
+        "10:00",
+        "12:00",
+        "14:00",
+        "16:00",
+        "18:00",
+        "20:00",
+        "22:00",
+      ].includes(timePart);
+    }
+    return timePart === "00:00" || timePart === "12:00";
+  });
 }
 
 async function loadJsonLines(filePath) {
@@ -1042,8 +1590,19 @@ async function loadJsonLines(filePath) {
 function enrichDailyRows(rows) {
   const filled = rows.map((row) => ({ ...row }));
   fillForward(filled, "realYield10Y");
+  fillForward(filled, "cnGoldEtfClose");
+  fillForward(filled, "cnGoldEtfTurnover");
+  fillForward(filled, "cnGoldEtfAltClose");
+  fillForward(filled, "cnGoldEtfAltTurnover");
+  fillForward(filled, "shfeAuMainClose");
+  fillForward(filled, "shfeAuMainVolume");
+  fillForward(filled, "shfeAuMainOpenInterest");
+  fillForward(filled, "shfeAuMainOpenInterestChange");
+  fillForward(filled, "shfeSpotPremiumCnyPerGram");
   for (let i = 0; i < filled.length; i += 1) {
     const row = filled[i];
+    row.recentHigh5 = movingHigh(filled, i, 5, "price");
+    row.recentHigh10 = movingHigh(filled, i, 10, "price");
     row.sma5 = movingAverage(filled, i, 5, "price");
     row.sma20 = movingAverage(filled, i, 20, "price");
     row.sma60 = movingAverage(filled, i, 60, "price");
@@ -1052,8 +1611,45 @@ function enrichDailyRows(rows) {
     row.prevSma60 = i > 0 ? filled[i - 1].sma60 : null;
     row.gldRoc20 = rateOfChange(filled, i, 20, "gldClose");
     row.uupRoc20 = rateOfChange(filled, i, 20, "uupClose");
+    row.cnGoldEtfSma20 = movingAverage(filled, i, 20, "cnGoldEtfClose");
+    row.cnGoldEtfClose20Ago = i >= 20 ? filled[i - 20].cnGoldEtfClose : null;
+    row.cnGoldEtfRoc20 = rateOfChange(filled, i, 20, "cnGoldEtfClose");
+    row.cnGoldEtfRoc5 = rateOfChange(filled, i, 5, "cnGoldEtfClose");
+    row.cnGoldEtfTurnoverMa20 = movingAverage(filled, i, 20, "cnGoldEtfTurnover");
+    row.cnGoldEtfTurnoverRatio20 = Number.isFinite(row.cnGoldEtfTurnoverMa20) && row.cnGoldEtfTurnoverMa20 > 0 && Number.isFinite(row.cnGoldEtfTurnover)
+      ? row.cnGoldEtfTurnover / row.cnGoldEtfTurnoverMa20
+      : null;
+    row.cnGoldEtfAltSma20 = movingAverage(filled, i, 20, "cnGoldEtfAltClose");
+    row.cnGoldEtfAltClose20Ago = i >= 20 ? filled[i - 20].cnGoldEtfAltClose : null;
+    row.cnGoldEtfAltRoc20 = rateOfChange(filled, i, 20, "cnGoldEtfAltClose");
+    row.cnGoldEtfAltRoc5 = rateOfChange(filled, i, 5, "cnGoldEtfAltClose");
+    row.cnGoldEtfAltTurnoverMa20 = movingAverage(filled, i, 20, "cnGoldEtfAltTurnover");
+    row.cnGoldEtfAltTurnoverRatio20 = Number.isFinite(row.cnGoldEtfAltTurnoverMa20) && row.cnGoldEtfAltTurnoverMa20 > 0 && Number.isFinite(row.cnGoldEtfAltTurnover)
+      ? row.cnGoldEtfAltTurnover / row.cnGoldEtfAltTurnoverMa20
+      : null;
+    row.shfeAuMainSma20 = movingAverage(filled, i, 20, "shfeAuMainClose");
+    row.shfeAuMainClose20Ago = i >= 20 ? filled[i - 20].shfeAuMainClose : null;
+    row.shfeAuMainRoc20 = rateOfChange(filled, i, 20, "shfeAuMainClose");
+    row.shfeAuMainRoc5 = rateOfChange(filled, i, 5, "shfeAuMainClose");
+    row.shfeAuMainVolumeMa20 = movingAverage(filled, i, 20, "shfeAuMainVolume");
+    row.shfeAuMainVolumeRatio20 = Number.isFinite(row.shfeAuMainVolumeMa20) && row.shfeAuMainVolumeMa20 > 0 && Number.isFinite(row.shfeAuMainVolume)
+      ? row.shfeAuMainVolume / row.shfeAuMainVolumeMa20
+      : null;
+    row.shfeSpotPremiumMa10 = movingAverage(filled, i, 10, "shfeSpotPremiumCnyPerGram");
   }
   return filled;
+}
+
+function movingHigh(rows, endIndex, length, key) {
+  if (endIndex < 0 || !Array.isArray(rows) || rows.length === 0) return null;
+  const startIndex = Math.max(0, endIndex - length + 1);
+  let high = Number.NEGATIVE_INFINITY;
+  for (let i = startIndex; i <= endIndex; i += 1) {
+    const value = Number(rows[i]?.[key]);
+    if (!Number.isFinite(value)) continue;
+    if (value > high) high = value;
+  }
+  return Number.isFinite(high) ? high : null;
 }
 
 function buildMovingAverageOverlay(chartSeries, dailyRows) {
@@ -1087,9 +1683,15 @@ function buildMovingAverageOverlay(chartSeries, dailyRows) {
 }
 
 function computeIntradayStats(rows) {
-  const slice = Array.isArray(rows) ? rows.slice(-24) : [];
-  const sma24 = slice.length ? slice.reduce((sum, row) => sum + row.price, 0) / slice.length : null;
-  return { sma24 };
+  const normalized = Array.isArray(rows) ? rows.slice(-144) : [];
+  const smaSlice = normalized.slice(-24);
+  const sma24 = smaSlice.length ? smaSlice.reduce((sum, row) => sum + row.price, 0) / smaSlice.length : null;
+  const recentLow = normalized.reduce((min, row) => (Number.isFinite(row.price) && row.price < min ? row.price : min), Number.POSITIVE_INFINITY);
+  return {
+    sma24,
+    recentLow: Number.isFinite(recentLow) ? recentLow : null,
+    latestTimestampLocal: normalized.at(-1)?.timestampLocal ?? null,
+  };
 }
 
 function isBullishDailySetup(row) {

@@ -28,11 +28,11 @@ const TROY_OUNCE_TO_GRAMS = 31.1034768;
 const FETCH_TIMEOUT_MS = 12000;
 const FETCH_RETRY_DELAYS_MS = [1500, 3000, 5000];
 const FILE_RETRY_DELAYS_MS = [150, 350, 700, 1200];
-const MAX_HIGH_FREQUENCY_HISTORY_ROWS = 5000;
-const MAX_DAILY_HISTORY_ROWS = 4000;
+const MAX_HIGH_FREQUENCY_HISTORY_ROWS = 60000;
+const MAX_DAILY_HISTORY_ROWS = 8000;
 const ALERT_HEADER = "时间,XAU/USD(美元/盎司),人民币价格(元/克),美元兑人民币汇率,相较上一次涨跌幅,评价,报警原因\n";
-const HF_HEADER = "时间,XAU/USD(美元/盎司),人民币价格(元/克),美元兑人民币汇率,GC近月收盘,GC近月成交量,UUP收盘,DXY代理,相较上一次涨跌幅,评价,建议\n";
-const DAILY_HEADER = "日期,GC近月收盘,GC近月成交量,GLD收盘,GLD成交量,UUP收盘,UUP成交量,10年实际利率,点评,建议\n";
+const HF_HEADER = "时间,XAU/USD(美元/盎司),人民币价格(元/克),美元兑人民币汇率,GC近月收盘,GC近月成交量,UUP收盘,DXY代理,相较上一次涨跌幅,评价,建议,GC近月持仓量,GC近月持仓变化,黄金ETF华安价格,黄金ETF华安成交量,黄金ETF华安成交额,上金所Au99.99,上金所Au(T+D),沪金主连价格,沪金主连成交量,沪金主连持仓量,沪金主连持仓变化,黄金ETF中银价格,黄金ETF中银成交量,黄金ETF中银成交额,上金所现货溢价,上金所T+D价差,沪金主连溢价\n";
+const DAILY_HEADER = "日期,GC近月收盘,GC近月成交量,GLD收盘,GLD成交量,UUP收盘,UUP成交量,10年实际利率,点评,建议,黄金ETF华安价格,黄金ETF华安成交量,黄金ETF华安成交额,上金所Au99.99,上金所Au(T+D),沪金主连价格,沪金主连成交量,沪金主连持仓量,沪金主连持仓变化,黄金ETF中银价格,黄金ETF中银成交量,黄金ETF中银成交额,上金所现货溢价,上金所T+D价差,沪金主连溢价\n";
 const HIGH_FREQUENCY_ROW_PATTERN = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},/;
 const DAILY_ROW_PATTERN = /^\d{4}-\d{2}-\d{2},/;
 const DEFAULT_CONFIG = {
@@ -54,9 +54,15 @@ const DEFAULT_CONFIG = {
     stooqGldSymbol: "gld.us",
     stooqDollarProxySymbol: "uup.us",
     treasuryRealYieldUrl: "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2026/all?type=daily_treasury_real_yield_curve",
+    eastmoneyCnGoldEtfSecid: "1.518880",
+    eastmoneyCnGoldEtfAltSecid: "1.518890",
+    eastmoneyShfeAuMainListCode: "113,1",
+    eastmoneyShfeAuMainDm: "aum",
+    sgeDelayedUrl: "https://www.sge.com.cn/sjzx/yshqbg",
     cnGoldSymbols: ["hf_XAU", "hf_GC"],
     cnFxSymbols: ["fx_susdcny", "USDCNY", "fx_USDCNY"],
     cnGoldFuturesSymbols: ["hf_GC"],
+    cnShfeGoldSymbols: ["nf_AU0"],
   },
   thresholds: { upperUsd: 5500, lowerUsd: 5000 },
 };
@@ -116,6 +122,8 @@ export function parseEastmoneyFuturesQtJson(payload) {
   const high = Number(quote?.h);
   const low = Number(quote?.l);
   const volume = Number(quote?.vol);
+  const openInterest = Number(quote?.ccl);
+  const openInterestChange = Number(quote?.cclbh);
   return {
     source: "Eastmoney",
     symbol: quote?.dm || null,
@@ -124,6 +132,8 @@ export function parseEastmoneyFuturesQtJson(payload) {
     low: Number.isFinite(low) ? low : close,
     close,
     volume: Number.isFinite(volume) ? volume : null,
+    openInterest: Number.isFinite(openInterest) ? openInterest : null,
+    openInterestChange: Number.isFinite(openInterestChange) ? openInterestChange : null,
   };
 }
 
@@ -137,6 +147,7 @@ export function parseEastmoneyStockQuoteJson(payload) {
   const highRaw = Number(quote?.f44);
   const lowRaw = Number(quote?.f45);
   const volume = Number(quote?.f47);
+  const turnover = Number(quote?.f48);
   return {
     source: "Eastmoney",
     symbol: quote?.f57 || null,
@@ -145,6 +156,74 @@ export function parseEastmoneyStockQuoteJson(payload) {
     low: Number.isFinite(lowRaw) ? lowRaw / divisor : closeRaw / divisor,
     close: closeRaw / divisor,
     volume: Number.isFinite(volume) ? volume : null,
+    turnover: Number.isFinite(turnover) ? turnover : null,
+  };
+}
+
+export function parseEastmoneyFuturesListJson(payload, symbolDm) {
+  const rows = Array.isArray(payload?.list) ? payload.list : [];
+  const quote = rows.find((item) => String(item?.dm || "").toLowerCase() === String(symbolDm || "").toLowerCase());
+  const close = Number(quote?.p);
+  if (!Number.isFinite(close)) throw new Error("东方财富期货列表数据为空");
+  const open = Number(quote?.o);
+  const high = Number(quote?.h);
+  const low = Number(quote?.l);
+  const volume = Number(quote?.vol);
+  const openInterest = Number(quote?.ccl);
+  const openInterestChange = Number(quote?.cclbh);
+  const netFlow = Number(quote?.zjlx);
+  return {
+    source: "Eastmoney",
+    symbol: quote?.dm || null,
+    name: quote?.name || null,
+    open: Number.isFinite(open) ? open : close,
+    high: Number.isFinite(high) ? high : close,
+    low: Number.isFinite(low) ? low : close,
+    close,
+    volume: Number.isFinite(volume) ? volume : null,
+    openInterest: Number.isFinite(openInterest) ? openInterest : null,
+    openInterestChange: Number.isFinite(openInterestChange) ? openInterestChange : null,
+    netFlow: Number.isFinite(netFlow) ? netFlow : null,
+  };
+}
+
+export function parseSgeDelayedHtml(htmlText) {
+  const rows = String(htmlText).match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  const extracted = {};
+  for (const rowHtml of rows) {
+    const cells = [...rowHtml.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((match) =>
+      stripHtml(match[1])
+        .replace(/&nbsp;/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+    );
+    if (!cells.length) continue;
+    if (cells[0] === "Au99.99") {
+      extracted.au9999 = {
+        contract: "Au99.99",
+        close: toNullableNumber(cells[1]),
+        high: toNullableNumber(cells[2]),
+        low: toNullableNumber(cells[3]),
+        open: toNullableNumber(cells[4]),
+      };
+    }
+    if (cells[0] === "Au(T+D)") {
+      extracted.auTd = {
+        contract: "Au(T+D)",
+        close: toNullableNumber(cells[1]),
+        high: toNullableNumber(cells[2]),
+        low: toNullableNumber(cells[3]),
+        open: toNullableNumber(cells[4]),
+      };
+    }
+  }
+  if (!Number.isFinite(extracted.au9999?.close) && !Number.isFinite(extracted.auTd?.close)) {
+    throw new Error("上金所延时行情数据为空");
+  }
+  return {
+    source: "SGE",
+    symbol: "Au99.99/Au(T+D)",
+    ...extracted,
   };
 }
 
@@ -175,6 +254,27 @@ export function parseSinaHqText(text) {
   if (!match) throw new Error("新浪行情格式异常");
   const [, symbol, body] = match;
   const parts = body.split(",").map((part) => part.trim());
+  if (symbol.startsWith("nf_")) {
+    const open = Number(parts[2]);
+    const high = Number(parts[3]);
+    const low = Number(parts[4]);
+    const closeCandidates = [parts[7], parts[8], parts[6], parts[2]].map((value) => Number(value));
+    const close = closeCandidates.find((value) => Number.isFinite(value) && value > 0);
+    if (![open, high, low, close].every(Number.isFinite)) throw new Error("新浪国内期货数值异常");
+    const openInterest = Number(parts[13]);
+    const volume = Number(parts[14]);
+    return {
+      source: "Sina",
+      symbol,
+      open,
+      high,
+      low,
+      close,
+      openInterest: Number.isFinite(openInterest) ? openInterest : null,
+      openInterestChange: null,
+      volume: Number.isFinite(volume) ? volume : null,
+    };
+  }
   if (symbol.startsWith("hf_")) {
     const close = Number(parts[0]);
     const open = Number(parts[2] || parts[0]);
@@ -223,9 +323,15 @@ export function normalizeConfig(config) {
       stooqGldSymbol: config?.dataSource?.stooqGldSymbol || DEFAULT_CONFIG.dataSource.stooqGldSymbol,
       stooqDollarProxySymbol: config?.dataSource?.stooqDollarProxySymbol || DEFAULT_CONFIG.dataSource.stooqDollarProxySymbol,
       treasuryRealYieldUrl: config?.dataSource?.treasuryRealYieldUrl || DEFAULT_CONFIG.dataSource.treasuryRealYieldUrl,
+      eastmoneyCnGoldEtfSecid: config?.dataSource?.eastmoneyCnGoldEtfSecid || DEFAULT_CONFIG.dataSource.eastmoneyCnGoldEtfSecid,
+      eastmoneyCnGoldEtfAltSecid: config?.dataSource?.eastmoneyCnGoldEtfAltSecid || DEFAULT_CONFIG.dataSource.eastmoneyCnGoldEtfAltSecid,
+      eastmoneyShfeAuMainListCode: config?.dataSource?.eastmoneyShfeAuMainListCode || DEFAULT_CONFIG.dataSource.eastmoneyShfeAuMainListCode,
+      eastmoneyShfeAuMainDm: config?.dataSource?.eastmoneyShfeAuMainDm || DEFAULT_CONFIG.dataSource.eastmoneyShfeAuMainDm,
+      sgeDelayedUrl: config?.dataSource?.sgeDelayedUrl || DEFAULT_CONFIG.dataSource.sgeDelayedUrl,
       cnGoldSymbols: Array.isArray(config?.dataSource?.cnGoldSymbols) && config.dataSource.cnGoldSymbols.length ? config.dataSource.cnGoldSymbols : DEFAULT_CONFIG.dataSource.cnGoldSymbols,
       cnFxSymbols: Array.isArray(config?.dataSource?.cnFxSymbols) && config.dataSource.cnFxSymbols.length ? config.dataSource.cnFxSymbols : DEFAULT_CONFIG.dataSource.cnFxSymbols,
       cnGoldFuturesSymbols: Array.isArray(config?.dataSource?.cnGoldFuturesSymbols) && config.dataSource.cnGoldFuturesSymbols.length ? config.dataSource.cnGoldFuturesSymbols : DEFAULT_CONFIG.dataSource.cnGoldFuturesSymbols,
+      cnShfeGoldSymbols: Array.isArray(config?.dataSource?.cnShfeGoldSymbols) && config.dataSource.cnShfeGoldSymbols.length ? config.dataSource.cnShfeGoldSymbols : DEFAULT_CONFIG.dataSource.cnShfeGoldSymbols,
     },
     thresholds: { upperUsd: Number.isFinite(upperUsd) ? upperUsd : DEFAULT_CONFIG.thresholds.upperUsd, lowerUsd: Number.isFinite(lowerUsd) ? lowerUsd : DEFAULT_CONFIG.thresholds.lowerUsd },
   };
@@ -235,7 +341,12 @@ export async function loadConfig() {
   await mkdir(ROOT_DIR, { recursive: true });
   try {
     const raw = await readFile(CONFIG_FILE, "utf8");
-    return normalizeConfig(JSON.parse(stripBom(raw)));
+    const parsed = JSON.parse(stripBom(raw));
+    const normalized = normalizeConfig(parsed);
+    if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
+      await atomicWriteFile(CONFIG_FILE, withBom(JSON.stringify(normalized, null, 2) + "\n"));
+    }
+    return normalized;
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
     const config = normalizeConfig(DEFAULT_CONFIG);
@@ -259,7 +370,23 @@ export function convertUsdPerOzToCnyPerGram(priceUsdPerOz, usdCnyRate) {
   return round2((priceUsdPerOz * usdCnyRate) / TROY_OUNCE_TO_GRAMS);
 }
 
-export function buildStatus(goldQuote, fxQuote, gcQuote, dollarProxyQuote, previousState, config, fetchDiagnostics = {}, sourceSummary = {}) {
+export function buildStatus(
+  goldQuote,
+  fxQuote,
+  gcQuote,
+  dollarProxyQuote,
+  marketSignalsOrPreviousState,
+  previousStateOrConfig,
+  configOrFetchDiagnostics = {},
+  fetchDiagnosticsOrSourceSummary = {},
+  sourceSummaryOverride = {}
+) {
+  const useLegacySignature = isMonitorConfig(previousStateOrConfig);
+  const marketSignals = useLegacySignature ? null : marketSignalsOrPreviousState;
+  const previousState = useLegacySignature ? marketSignalsOrPreviousState : previousStateOrConfig;
+  const config = useLegacySignature ? previousStateOrConfig : configOrFetchDiagnostics;
+  const fetchDiagnostics = useLegacySignature ? configOrFetchDiagnostics : fetchDiagnosticsOrSourceSummary;
+  const sourceSummary = useLegacySignature ? fetchDiagnosticsOrSourceSummary : sourceSummaryOverride;
   const priceUsdPerOz = Number.isFinite(goldQuote?.close) ? round2(goldQuote.close) : null;
   const usdCnyRate = Number.isFinite(fxQuote?.close) ? round4(fxQuote.close) : null;
   const priceCnyPerGram = priceUsdPerOz !== null && usdCnyRate !== null ? convertUsdPerOzToCnyPerGram(priceUsdPerOz, usdCnyRate) : null;
@@ -270,8 +397,25 @@ export function buildStatus(goldQuote, fxQuote, gcQuote, dollarProxyQuote, previ
   const thresholdText = priceUsdPerOz !== null ? (priceUsdPerOz > config.thresholds.upperUsd ? `高于 ${config.thresholds.upperUsd}` : priceUsdPerOz < config.thresholds.lowerUsd ? `低于 ${config.thresholds.lowerUsd}` : "") : "";
   const gcFrontClose = Number.isFinite(gcQuote?.close) ? round2(gcQuote.close) : null;
   const gcFrontVolume = Number.isFinite(gcQuote?.volume) ? gcQuote.volume : null;
+  const gcFrontOpenInterest = Number.isFinite(gcQuote?.openInterest) ? gcQuote.openInterest : null;
+  const gcFrontOpenInterestChange = Number.isFinite(gcQuote?.openInterestChange) ? gcQuote.openInterestChange : null;
   const dollarProxyClose = Number.isFinite(dollarProxyQuote?.close) ? round2(dollarProxyQuote.close) : null;
   const dollarProxyVolume = Number.isFinite(dollarProxyQuote?.volume) ? dollarProxyQuote.volume : null;
+  const cnGoldEtfClose = Number.isFinite(marketSignals?.cnGoldEtf?.close) ? round3(marketSignals.cnGoldEtf.close) : null;
+  const cnGoldEtfVolume = Number.isFinite(marketSignals?.cnGoldEtf?.volume) ? marketSignals.cnGoldEtf.volume : null;
+  const cnGoldEtfTurnover = Number.isFinite(marketSignals?.cnGoldEtf?.turnover) ? marketSignals.cnGoldEtf.turnover : null;
+  const cnGoldEtfAltClose = Number.isFinite(marketSignals?.cnGoldEtfAlt?.close) ? round3(marketSignals.cnGoldEtfAlt.close) : null;
+  const cnGoldEtfAltVolume = Number.isFinite(marketSignals?.cnGoldEtfAlt?.volume) ? marketSignals.cnGoldEtfAlt.volume : null;
+  const cnGoldEtfAltTurnover = Number.isFinite(marketSignals?.cnGoldEtfAlt?.turnover) ? marketSignals.cnGoldEtfAlt.turnover : null;
+  const shfeAuMainClose = Number.isFinite(marketSignals?.shfeAuMain?.close) ? round2(marketSignals.shfeAuMain.close) : null;
+  const shfeAuMainVolume = Number.isFinite(marketSignals?.shfeAuMain?.volume) ? marketSignals.shfeAuMain.volume : null;
+  const shfeAuMainOpenInterest = Number.isFinite(marketSignals?.shfeAuMain?.openInterest) ? marketSignals.shfeAuMain.openInterest : null;
+  const shfeAuMainOpenInterestChange = Number.isFinite(marketSignals?.shfeAuMain?.openInterestChange) ? marketSignals.shfeAuMain.openInterestChange : null;
+  const sgeAu9999 = Number.isFinite(marketSignals?.sgeDelayed?.au9999?.close) ? round2(marketSignals.sgeDelayed.au9999.close) : null;
+  const sgeAuTd = Number.isFinite(marketSignals?.sgeDelayed?.auTd?.close) ? round2(marketSignals.sgeDelayed.auTd.close) : null;
+  const sgeSpotPremiumCnyPerGram = Number.isFinite(sgeAu9999) && Number.isFinite(priceCnyPerGram) ? round2(sgeAu9999 - priceCnyPerGram) : null;
+  const sgeTdSpreadCnyPerGram = Number.isFinite(sgeAuTd) && Number.isFinite(sgeAu9999) ? round2(sgeAuTd - sgeAu9999) : null;
+  const shfeSpotPremiumCnyPerGram = Number.isFinite(shfeAuMainClose) && Number.isFinite(priceCnyPerGram) ? round2(shfeAuMainClose - priceCnyPerGram) : null;
   const missing = [];
   if (priceUsdPerOz === null) missing.push("XAU/USD");
   if (usdCnyRate === null) missing.push("USD/CNY");
@@ -283,6 +427,13 @@ export function buildStatus(goldQuote, fxQuote, gcQuote, dollarProxyQuote, previ
     `美元兑人民币 ${formatMaybe(usdCnyRate, 4, "空")}`,
     `GC近月 ${formatMaybe(gcFrontClose, 2, "空")}`,
     `DXY代理 ${formatMaybe(dollarProxyClose, 2, "空")}`,
+    `GC持仓 ${formatMaybe(gcFrontOpenInterest, 0, "空")}`,
+    `沪金主连 ${formatMaybe(shfeAuMainClose, 2, "空")}`,
+    `沪金持仓 ${formatMaybe(shfeAuMainOpenInterest, 0, "空")}`,
+    `黄金ETF华安 ${formatMaybe(cnGoldEtfClose, 3, "空")}`,
+    `黄金ETF中银 ${formatMaybe(cnGoldEtfAltClose, 3, "空")}`,
+    `Au99.99 ${formatMaybe(sgeAu9999, 2, "空")}`,
+    `沪金溢价 ${formatMaybe(shfeSpotPremiumCnyPerGram, 2, "空")}`,
     changePct === null ? "较上次空" : `较上次 ${formatSigned(changePct)}%`,
     direction,
   ];
@@ -304,15 +455,43 @@ export function buildStatus(goldQuote, fxQuote, gcQuote, dollarProxyQuote, previ
     message,
     gcFrontClose,
     gcFrontVolume,
+    gcFrontOpenInterest,
+    gcFrontOpenInterestChange,
     dollarProxyClose,
     dollarProxyVolume,
+    cnGoldEtfClose,
+    cnGoldEtfVolume,
+    cnGoldEtfTurnover,
+    cnGoldEtfAltClose,
+    cnGoldEtfAltVolume,
+    cnGoldEtfAltTurnover,
+    shfeAuMainClose,
+    shfeAuMainVolume,
+    shfeAuMainOpenInterest,
+    shfeAuMainOpenInterestChange,
+    sgeAu9999,
+    sgeAuTd,
+    sgeSpotPremiumCnyPerGram,
+    sgeTdSpreadCnyPerGram,
+    shfeSpotPremiumCnyPerGram,
     sourceSummary,
     fetchDiagnostics,
     missing,
   };
 }
 
-export function buildDailyContext(gcQuote, gldQuote, dollarProxyQuote, realYield) {
+function isMonitorConfig(value) {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    value.thresholds &&
+    typeof value.thresholds === "object" &&
+    value.dataSource &&
+    typeof value.dataSource === "object"
+  );
+}
+
+export function buildDailyContext(gcQuote, gldQuote, dollarProxyQuote, realYield, marketSignals) {
   const gcFrontClose = Number.isFinite(gcQuote?.close) ? round2(gcQuote.close) : null;
   const gcFrontVolume = Number.isFinite(gcQuote?.volume) ? gcQuote.volume : null;
   const gldClose = Number.isFinite(gldQuote?.close) ? round2(gldQuote.close) : null;
@@ -320,6 +499,21 @@ export function buildDailyContext(gcQuote, gldQuote, dollarProxyQuote, realYield
   const dollarProxyClose = Number.isFinite(dollarProxyQuote?.close) ? round2(dollarProxyQuote.close) : null;
   const dollarProxyVolume = Number.isFinite(dollarProxyQuote?.volume) ? dollarProxyQuote.volume : null;
   const realYield10Y = Number.isFinite(realYield?.value) ? round2(realYield.value) : null;
+  const cnGoldEtfClose = Number.isFinite(marketSignals?.cnGoldEtf?.close) ? round3(marketSignals.cnGoldEtf.close) : null;
+  const cnGoldEtfVolume = Number.isFinite(marketSignals?.cnGoldEtf?.volume) ? marketSignals.cnGoldEtf.volume : null;
+  const cnGoldEtfTurnover = Number.isFinite(marketSignals?.cnGoldEtf?.turnover) ? marketSignals.cnGoldEtf.turnover : null;
+  const cnGoldEtfAltClose = Number.isFinite(marketSignals?.cnGoldEtfAlt?.close) ? round3(marketSignals.cnGoldEtfAlt.close) : null;
+  const cnGoldEtfAltVolume = Number.isFinite(marketSignals?.cnGoldEtfAlt?.volume) ? marketSignals.cnGoldEtfAlt.volume : null;
+  const cnGoldEtfAltTurnover = Number.isFinite(marketSignals?.cnGoldEtfAlt?.turnover) ? marketSignals.cnGoldEtfAlt.turnover : null;
+  const shfeAuMainClose = Number.isFinite(marketSignals?.shfeAuMain?.close) ? round2(marketSignals.shfeAuMain.close) : null;
+  const shfeAuMainVolume = Number.isFinite(marketSignals?.shfeAuMain?.volume) ? marketSignals.shfeAuMain.volume : null;
+  const shfeAuMainOpenInterest = Number.isFinite(marketSignals?.shfeAuMain?.openInterest) ? marketSignals.shfeAuMain.openInterest : null;
+  const shfeAuMainOpenInterestChange = Number.isFinite(marketSignals?.shfeAuMain?.openInterestChange) ? marketSignals.shfeAuMain.openInterestChange : null;
+  const sgeAu9999 = Number.isFinite(marketSignals?.sgeDelayed?.au9999?.close) ? round2(marketSignals.sgeDelayed.au9999.close) : null;
+  const sgeAuTd = Number.isFinite(marketSignals?.sgeDelayed?.auTd?.close) ? round2(marketSignals.sgeDelayed.auTd.close) : null;
+  const sgeSpotPremiumCnyPerGram = Number.isFinite(sgeAu9999) && Number.isFinite(marketSignals?.spotCnyPerGram) ? round2(sgeAu9999 - marketSignals.spotCnyPerGram) : null;
+  const sgeTdSpreadCnyPerGram = Number.isFinite(sgeAuTd) && Number.isFinite(sgeAu9999) ? round2(sgeAuTd - sgeAu9999) : null;
+  const shfeSpotPremiumCnyPerGram = Number.isFinite(shfeAuMainClose) && Number.isFinite(marketSignals?.spotCnyPerGram) ? round2(shfeAuMainClose - marketSignals.spotCnyPerGram) : null;
   return {
     date: realYield?.date || formatLocalDate(new Date()),
     gcFrontClose,
@@ -329,29 +523,67 @@ export function buildDailyContext(gcQuote, gldQuote, dollarProxyQuote, realYield
     dollarProxyClose,
     dollarProxyVolume,
     realYield10Y,
-    commentary: [`GC近月 ${formatMaybe(gcFrontClose, 2, "空")}`, `GLD ${formatMaybe(gldClose, 2, "空")}`, `UUP ${formatMaybe(dollarProxyClose, 2, "空")}`, `10年实际利率 ${formatMaybe(realYield10Y, 2, "空")}${realYield10Y === null ? "" : "%"}`].join("，"),
+    cnGoldEtfClose,
+    cnGoldEtfVolume,
+    cnGoldEtfTurnover,
+    cnGoldEtfAltClose,
+    cnGoldEtfAltVolume,
+    cnGoldEtfAltTurnover,
+    shfeAuMainClose,
+    shfeAuMainVolume,
+    shfeAuMainOpenInterest,
+    shfeAuMainOpenInterestChange,
+    sgeAu9999,
+    sgeAuTd,
+    sgeSpotPremiumCnyPerGram,
+    sgeTdSpreadCnyPerGram,
+    shfeSpotPremiumCnyPerGram,
+    commentary: [
+      `GC近月 ${formatMaybe(gcFrontClose, 2, "空")}`,
+      `GLD ${formatMaybe(gldClose, 2, "空")}`,
+      `UUP ${formatMaybe(dollarProxyClose, 2, "空")}`,
+      `10年实际利率 ${formatMaybe(realYield10Y, 2, "空")}${realYield10Y === null ? "" : "%"}`,
+      `黄金ETF华安 ${formatMaybe(cnGoldEtfClose, 3, "空")}`,
+      `黄金ETF中银 ${formatMaybe(cnGoldEtfAltClose, 3, "空")}`,
+      `沪金主连 ${formatMaybe(shfeAuMainClose, 2, "空")}`,
+      `Au99.99 ${formatMaybe(sgeAu9999, 2, "空")}`,
+      `Au(T+D) ${formatMaybe(sgeAuTd, 2, "空")}`,
+      `上金所现货溢价 ${formatMaybe(sgeSpotPremiumCnyPerGram, 2, "空")}`,
+      `沪金溢价 ${formatMaybe(shfeSpotPremiumCnyPerGram, 2, "空")}`,
+    ].join("，"),
   };
 }
 
 export function buildHighFrequencyHeaderDescription() {
-  return "说明：XAU/USD=伦敦金美元/盎司现价；人民币价格=按USD/CNY换算后的元/克；GC近月收盘/成交量=COMEX黄金近月期货价格与活跃度；UUP收盘/DXY代理=美元强弱代理；相较上一次涨跌幅=本轮相对上一轮变化；评价=短线方向判断；建议=结合近几轮价格、GC量能、美元代理和历史记录后的操作倾向；空=本轮未获取到。";
+  return "说明：XAU/USD=伦敦金美元/盎司现价；人民币价格=按USD/CNY换算后的元/克；GC近月收盘/成交量/持仓=COMEX黄金近月期货价格、活跃度与持仓变化；沪金主连=国内黄金期货主力连续合约价格、成交量与持仓变化；黄金ETF华安/黄金ETF中银=国内两只黄金ETF的实时价格、成交量与成交额；上金所Au99.99/Au(T+D)=交易所延时行情；上金所现货溢价=Au99.99相对合成现货人民币金价的价差；上金所T+D价差=Au(T+D)相对Au99.99的价差；沪金主连溢价=沪金主连相对合成现货人民币金价的价差；UUP收盘/DXY代理=美元强弱代理；相较上一次涨跌幅=本轮相对上一轮变化；评价=短线方向判断；建议=结合近几轮价格、期货量仓、国内ETF成交和历史记录后的操作倾向；空=本轮未获取到。";
 }
 
 export function buildDailyHeaderDescription() {
-  return "说明：GC近月=COMEX黄金近月期货；GLD=黄金ETF价格与成交量；UUP=美元ETF，作为美元强弱代理；10年实际利率=黄金中线核心变量；建议=结合当前日频数据与历史变化给出的中线倾向；空=本轮未获取到。";
+  return "说明：GC近月=COMEX黄金近月期货；GLD=黄金ETF价格与成交量；UUP=美元ETF，作为美元强弱代理；沪金主连=国内黄金期货主力连续合约价格与成交量；黄金ETF华安/黄金ETF中银=国内黄金ETF价格、成交量和成交额；上金所Au99.99/Au(T+D)=国内交易所金价延时参考；上金所现货溢价/沪金主连溢价=境内金价相对合成现货人民币金价的价差；10年实际利率=黄金中线核心变量；建议=结合当前日频数据与历史变化给出的中线倾向；空=本轮未获取到。";
 }
 
 export function buildHighFrequencyAdvice(state, historyRows) {
   if (state.priceUsdPerOz === null) return "数据不足：本轮缺少核心金价，先等待 XAU/USD 恢复。";
   const recent = historyRows.slice(-3).filter((row) => Number.isFinite(row.priceUsdPerOz));
   const avgVolume = recent.length ? recent.reduce((sum, row) => sum + (row.gcFrontVolume || 0), 0) / recent.length : state.gcFrontVolume || 0;
+  const avgOpenInterest = recent.length ? recent.reduce((sum, row) => sum + (row.gcFrontOpenInterest || 0), 0) / recent.length : state.gcFrontOpenInterest || 0;
+  const avgShfeVolume = recent.length ? recent.reduce((sum, row) => sum + (row.shfeAuMainVolume || 0), 0) / recent.length : state.shfeAuMainVolume || 0;
+  const avgShfeOi = recent.length ? recent.reduce((sum, row) => sum + (row.shfeAuMainOpenInterest || 0), 0) / recent.length : state.shfeAuMainOpenInterest || 0;
+  const avgEtfTurnover = recent.length ? recent.reduce((sum, row) => sum + (row.cnGoldEtfTurnover || 0), 0) / recent.length : state.cnGoldEtfTurnover || 0;
+  const avgEtfAltTurnover = recent.length ? recent.reduce((sum, row) => sum + (row.cnGoldEtfAltTurnover || 0), 0) / recent.length : state.cnGoldEtfAltTurnover || 0;
   const avgDollar = recent.length ? recent.reduce((sum, row) => sum + (row.dollarProxyClose || 0), 0) / recent.length : (state.dollarProxyClose ?? 0);
   const positiveCount = recent.filter((row) => (row.changePct || 0) > 0).length + ((state.changePct || 0) > 0 ? 1 : 0);
   const negativeCount = recent.filter((row) => (row.changePct || 0) < 0).length + ((state.changePct || 0) < 0 ? 1 : 0);
   const volumeStrong = state.gcFrontVolume === null ? false : state.gcFrontVolume >= avgVolume;
+  const oiRising = state.gcFrontOpenInterest !== null && state.gcFrontOpenInterest >= avgOpenInterest && Number.isFinite(state.gcFrontOpenInterestChange) && state.gcFrontOpenInterestChange > 0;
+  const shfeVolumeStrong = state.shfeAuMainVolume !== null && state.shfeAuMainVolume >= avgShfeVolume;
+  const shfeOiRising = state.shfeAuMainOpenInterest !== null && state.shfeAuMainOpenInterest >= avgShfeOi && Number.isFinite(state.shfeAuMainOpenInterestChange) && state.shfeAuMainOpenInterestChange >= 0;
+  const domesticFlowStrong = state.cnGoldEtfTurnover !== null && state.cnGoldEtfTurnover >= avgEtfTurnover && Number.isFinite(state.cnGoldEtfClose);
+  const domesticBreadthStrong = state.cnGoldEtfAltTurnover !== null && state.cnGoldEtfAltTurnover >= avgEtfAltTurnover && Number.isFinite(state.cnGoldEtfAltClose);
   const dollarSoft = state.dollarProxyClose === null ? false : state.dollarProxyClose <= avgDollar;
-  if (state.direction === "短线偏强" && positiveCount >= 2 && (volumeStrong || state.gcFrontVolume === null) && (dollarSoft || state.dollarProxyClose === null)) return "偏多观察：近几轮上涨占优，可优先等待回踩后的顺势机会。";
-  if (state.direction === "短线偏弱" && negativeCount >= 2 && state.dollarProxyClose !== null && !dollarSoft) return "防守为主：近几轮走弱且美元代理偏硬，控制仓位。";
+  const domesticPremiumSupportive = (state.sgeSpotPremiumCnyPerGram ?? 0) >= -1 && (state.shfeSpotPremiumCnyPerGram ?? 0) >= -2;
+  if (state.direction === "短线偏强" && positiveCount >= 2 && (volumeStrong || shfeVolumeStrong || state.gcFrontVolume === null) && ((dollarSoft || state.dollarProxyClose === null) || domesticFlowStrong || domesticBreadthStrong) && domesticPremiumSupportive) return "偏多观察：近几轮上涨占优，境内外量仓与国内ETF资金有一定配合，可优先等待回踩后的顺势机会。";
+  if (state.direction === "短线偏弱" && negativeCount >= 2 && ((state.dollarProxyClose !== null && !dollarSoft) || oiRising || shfeOiRising)) return "防守为主：近几轮走弱，且美元或境内外期货持仓方向不友好，控制仓位。";
   if (state.missing?.length) return "谨慎跟踪：本轮存在缺失数据，参考价值下降，先小仓位观察。";
   return "观望等待确认：短线信号分化，等方向和量能进一步确认。";
 }
@@ -362,8 +594,12 @@ export function buildDailyAdvice(dailyContext, dailyHistory) {
   const realYieldFalling = previous && dailyContext.realYield10Y !== null && previous.realYield10Y !== null ? dailyContext.realYield10Y <= previous.realYield10Y : dailyContext.realYield10Y !== null ? dailyContext.realYield10Y < 2 : null;
   const gldStable = previous && dailyContext.gldClose !== null && previous.gldClose !== null ? dailyContext.gldClose >= previous.gldClose : dailyContext.gldClose !== null ? dailyContext.gldClose > 0 : null;
   const dollarSoft = previous && dailyContext.dollarProxyClose !== null && previous.dollarProxyClose !== null ? dailyContext.dollarProxyClose <= previous.dollarProxyClose : dailyContext.dollarProxyClose !== null ? dailyContext.dollarProxyClose < 28 : null;
-  if (realYieldFalling === true && gldStable !== false && dollarSoft !== false) return "中线偏多：利率和美元环境未明显压制黄金，可维持中线跟踪。";
-  if (realYieldFalling === false && dollarSoft === false) return "中线谨慎：实际利率和美元代理都不友好，先控制节奏。";
+  const cnEtfStable = previous && dailyContext.cnGoldEtfClose !== null && previous.cnGoldEtfClose !== null ? dailyContext.cnGoldEtfClose >= previous.cnGoldEtfClose : dailyContext.cnGoldEtfClose !== null ? dailyContext.cnGoldEtfClose > 0 : null;
+  const cnEtfAltStable = previous && dailyContext.cnGoldEtfAltClose !== null && previous.cnGoldEtfAltClose !== null ? dailyContext.cnGoldEtfAltClose >= previous.cnGoldEtfAltClose : dailyContext.cnGoldEtfAltClose !== null ? dailyContext.cnGoldEtfAltClose > 0 : null;
+  const shfeStable = previous && dailyContext.shfeAuMainClose !== null && previous.shfeAuMainClose !== null ? dailyContext.shfeAuMainClose >= previous.shfeAuMainClose : dailyContext.shfeAuMainClose !== null ? dailyContext.shfeAuMainClose > 0 : null;
+  const domesticPremiumHealthy = (dailyContext.sgeSpotPremiumCnyPerGram ?? 0) >= -2 && (dailyContext.shfeSpotPremiumCnyPerGram ?? 0) >= -3;
+  if (realYieldFalling === true && gldStable !== false && dollarSoft !== false && cnEtfStable !== false && cnEtfAltStable !== false && shfeStable !== false && domesticPremiumHealthy) return "中线偏多：利率和美元环境未明显压制黄金，境内ETF与沪金主连也未走弱，可维持中线跟踪。";
+  if (realYieldFalling === false && dollarSoft === false && domesticPremiumHealthy === false) return "中线谨慎：实际利率、美元和境内溢价都不友好，先控制节奏。";
   return "中线中性：资金面未形成单边优势，继续观察宏观变化。";
 }
 
@@ -426,8 +662,25 @@ function buildLatestState(status, dailyContext, highFrequencyAdvice, dailyAdvice
     message: status.message,
     gcFrontClose: status.gcFrontClose,
     gcFrontVolume: status.gcFrontVolume,
+    gcFrontOpenInterest: status.gcFrontOpenInterest,
+    gcFrontOpenInterestChange: status.gcFrontOpenInterestChange,
     dollarProxyClose: status.dollarProxyClose,
     dollarProxyVolume: status.dollarProxyVolume,
+    cnGoldEtfClose: status.cnGoldEtfClose,
+    cnGoldEtfVolume: status.cnGoldEtfVolume,
+    cnGoldEtfTurnover: status.cnGoldEtfTurnover,
+    cnGoldEtfAltClose: status.cnGoldEtfAltClose,
+    cnGoldEtfAltVolume: status.cnGoldEtfAltVolume,
+    cnGoldEtfAltTurnover: status.cnGoldEtfAltTurnover,
+    shfeAuMainClose: status.shfeAuMainClose,
+    shfeAuMainVolume: status.shfeAuMainVolume,
+    shfeAuMainOpenInterest: status.shfeAuMainOpenInterest,
+    shfeAuMainOpenInterestChange: status.shfeAuMainOpenInterestChange,
+    sgeAu9999: status.sgeAu9999,
+    sgeAuTd: status.sgeAuTd,
+    sgeSpotPremiumCnyPerGram: status.sgeSpotPremiumCnyPerGram,
+    sgeTdSpreadCnyPerGram: status.sgeTdSpreadCnyPerGram,
+    shfeSpotPremiumCnyPerGram: status.shfeSpotPremiumCnyPerGram,
     sourceSummary: sanitizeSourceSummary(status.sourceSummary),
     fetchDiagnostics: status.fetchDiagnostics,
     missing: status.missing,
@@ -550,6 +803,23 @@ function parseHighFrequencyCsvRow(row) {
     changePct: parts[8] ? toNumberOrNull(String(parts[8]).replace("%", "")) : null,
     direction: parts[9] || "数据不足",
     highFrequencyAdvice: parts[10] ?? "",
+    gcFrontOpenInterest: toNumberOrNull(parts[11]),
+    gcFrontOpenInterestChange: toNumberOrNull(parts[12]),
+    cnGoldEtfClose: toNumberOrNull(parts[13]),
+    cnGoldEtfVolume: toNumberOrNull(parts[14]),
+    cnGoldEtfTurnover: toNumberOrNull(parts[15]),
+    sgeAu9999: toNumberOrNull(parts[16]),
+    sgeAuTd: toNumberOrNull(parts[17]),
+    shfeAuMainClose: toNumberOrNull(parts[18]),
+    shfeAuMainVolume: toNumberOrNull(parts[19]),
+    shfeAuMainOpenInterest: toNumberOrNull(parts[20]),
+    shfeAuMainOpenInterestChange: toNumberOrNull(parts[21]),
+    cnGoldEtfAltClose: toNumberOrNull(parts[22]),
+    cnGoldEtfAltVolume: toNumberOrNull(parts[23]),
+    cnGoldEtfAltTurnover: toNumberOrNull(parts[24]),
+    sgeSpotPremiumCnyPerGram: toNumberOrNull(parts[25]),
+    sgeTdSpreadCnyPerGram: toNumberOrNull(parts[26]),
+    shfeSpotPremiumCnyPerGram: toNumberOrNull(parts[27]),
   };
 }
 
@@ -566,6 +836,21 @@ function parseDailyCsvRow(row) {
     realYield10Y: toNumberOrNull(parts[7]),
     commentary: parts[8] ?? "",
     dailyAdvice: parts[9] ?? "",
+    cnGoldEtfClose: toNumberOrNull(parts[10]),
+    cnGoldEtfVolume: toNumberOrNull(parts[11]),
+    cnGoldEtfTurnover: toNumberOrNull(parts[12]),
+    sgeAu9999: toNumberOrNull(parts[13]),
+    sgeAuTd: toNumberOrNull(parts[14]),
+    shfeAuMainClose: toNumberOrNull(parts[15]),
+    shfeAuMainVolume: toNumberOrNull(parts[16]),
+    shfeAuMainOpenInterest: toNumberOrNull(parts[17]),
+    shfeAuMainOpenInterestChange: toNumberOrNull(parts[18]),
+    cnGoldEtfAltClose: toNumberOrNull(parts[19]),
+    cnGoldEtfAltVolume: toNumberOrNull(parts[20]),
+    cnGoldEtfAltTurnover: toNumberOrNull(parts[21]),
+    sgeSpotPremiumCnyPerGram: toNumberOrNull(parts[22]),
+    sgeTdSpreadCnyPerGram: toNumberOrNull(parts[23]),
+    shfeSpotPremiumCnyPerGram: toNumberOrNull(parts[24]),
   };
 }
 
@@ -578,11 +863,28 @@ function buildHighFrequencyStateRow(state) {
     usdCnyRate: state.usdCnyRate,
     gcFrontClose: state.gcFrontClose,
     gcFrontVolume: state.gcFrontVolume,
+    gcFrontOpenInterest: state.gcFrontOpenInterest,
+    gcFrontOpenInterestChange: state.gcFrontOpenInterestChange,
     dollarProxyClose: state.dollarProxyClose,
     dollarProxyVolume: state.dollarProxyVolume,
     changePct: state.changePct,
     direction: state.direction,
     highFrequencyAdvice: state.highFrequencyAdvice,
+    cnGoldEtfClose: state.cnGoldEtfClose,
+    cnGoldEtfVolume: state.cnGoldEtfVolume,
+    cnGoldEtfTurnover: state.cnGoldEtfTurnover,
+    sgeAu9999: state.sgeAu9999,
+    sgeAuTd: state.sgeAuTd,
+    shfeAuMainClose: state.shfeAuMainClose,
+    shfeAuMainVolume: state.shfeAuMainVolume,
+    shfeAuMainOpenInterest: state.shfeAuMainOpenInterest,
+    shfeAuMainOpenInterestChange: state.shfeAuMainOpenInterestChange,
+    cnGoldEtfAltClose: state.cnGoldEtfAltClose,
+    cnGoldEtfAltVolume: state.cnGoldEtfAltVolume,
+    cnGoldEtfAltTurnover: state.cnGoldEtfAltTurnover,
+    sgeSpotPremiumCnyPerGram: state.sgeSpotPremiumCnyPerGram,
+    sgeTdSpreadCnyPerGram: state.sgeTdSpreadCnyPerGram,
+    shfeSpotPremiumCnyPerGram: state.shfeSpotPremiumCnyPerGram,
     missing: state.missing,
   };
 }
@@ -597,6 +899,21 @@ function buildDailyStateRow(dailyContext, dailyAdvice) {
     dollarProxyClose: dailyContext.dollarProxyClose,
     dollarProxyVolume: dailyContext.dollarProxyVolume,
     realYield10Y: dailyContext.realYield10Y,
+    cnGoldEtfClose: dailyContext.cnGoldEtfClose,
+    cnGoldEtfVolume: dailyContext.cnGoldEtfVolume,
+    cnGoldEtfTurnover: dailyContext.cnGoldEtfTurnover,
+    sgeAu9999: dailyContext.sgeAu9999,
+    sgeAuTd: dailyContext.sgeAuTd,
+    shfeAuMainClose: dailyContext.shfeAuMainClose,
+    shfeAuMainVolume: dailyContext.shfeAuMainVolume,
+    shfeAuMainOpenInterest: dailyContext.shfeAuMainOpenInterest,
+    shfeAuMainOpenInterestChange: dailyContext.shfeAuMainOpenInterestChange,
+    cnGoldEtfAltClose: dailyContext.cnGoldEtfAltClose,
+    cnGoldEtfAltVolume: dailyContext.cnGoldEtfAltVolume,
+    cnGoldEtfAltTurnover: dailyContext.cnGoldEtfAltTurnover,
+    sgeSpotPremiumCnyPerGram: dailyContext.sgeSpotPremiumCnyPerGram,
+    sgeTdSpreadCnyPerGram: dailyContext.sgeTdSpreadCnyPerGram,
+    shfeSpotPremiumCnyPerGram: dailyContext.shfeSpotPremiumCnyPerGram,
     commentary: dailyContext.commentary,
     dailyAdvice,
   };
@@ -615,6 +932,23 @@ function buildHighFrequencyCsvRow(row) {
     row.changePct === null ? "" : `${formatSigned(Number(row.changePct))}%`,
     row.direction || "数据不足",
     escapeCsv(row.highFrequencyAdvice ?? ""),
+    formatMaybe(row.gcFrontOpenInterest, 0, ""),
+    formatMaybe(row.gcFrontOpenInterestChange, 0, ""),
+    formatMaybe(row.cnGoldEtfClose, 3, ""),
+    formatMaybe(row.cnGoldEtfVolume, 0, ""),
+    formatMaybe(row.cnGoldEtfTurnover, 0, ""),
+    formatMaybe(row.sgeAu9999, 2, ""),
+    formatMaybe(row.sgeAuTd, 2, ""),
+    formatMaybe(row.shfeAuMainClose, 2, ""),
+    formatMaybe(row.shfeAuMainVolume, 0, ""),
+    formatMaybe(row.shfeAuMainOpenInterest, 0, ""),
+    formatMaybe(row.shfeAuMainOpenInterestChange, 0, ""),
+    formatMaybe(row.cnGoldEtfAltClose, 3, ""),
+    formatMaybe(row.cnGoldEtfAltVolume, 0, ""),
+    formatMaybe(row.cnGoldEtfAltTurnover, 0, ""),
+    formatMaybe(row.sgeSpotPremiumCnyPerGram, 2, ""),
+    formatMaybe(row.sgeTdSpreadCnyPerGram, 2, ""),
+    formatMaybe(row.shfeSpotPremiumCnyPerGram, 2, ""),
   ].join(",");
 }
 
@@ -630,6 +964,21 @@ function buildDailyCsvRow(row) {
     formatMaybe(row.realYield10Y, 2, ""),
     escapeCsv(row.commentary ?? ""),
     escapeCsv(row.dailyAdvice ?? ""),
+    formatMaybe(row.cnGoldEtfClose, 3, ""),
+    formatMaybe(row.cnGoldEtfVolume, 0, ""),
+    formatMaybe(row.cnGoldEtfTurnover, 0, ""),
+    formatMaybe(row.sgeAu9999, 2, ""),
+    formatMaybe(row.sgeAuTd, 2, ""),
+    formatMaybe(row.shfeAuMainClose, 2, ""),
+    formatMaybe(row.shfeAuMainVolume, 0, ""),
+    formatMaybe(row.shfeAuMainOpenInterest, 0, ""),
+    formatMaybe(row.shfeAuMainOpenInterestChange, 0, ""),
+    formatMaybe(row.cnGoldEtfAltClose, 3, ""),
+    formatMaybe(row.cnGoldEtfAltVolume, 0, ""),
+    formatMaybe(row.cnGoldEtfAltTurnover, 0, ""),
+    formatMaybe(row.sgeSpotPremiumCnyPerGram, 2, ""),
+    formatMaybe(row.sgeTdSpreadCnyPerGram, 2, ""),
+    formatMaybe(row.shfeSpotPremiumCnyPerGram, 2, ""),
   ].join(",");
 }
 
@@ -674,8 +1023,14 @@ function buildDailyCsv(rows) {
 
 function isValidCsvRow(line) { return !line.includes("�") && /^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?,/.test(line); }
 function escapeCsv(value) { const text = String(value); return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text; }
-function buildHighFrequencySummary(state) { return `${state.checkedAtLocal} | XAU/USD ${formatMaybe(state.priceUsdPerOz, 2, "空")} | RMB/g ${formatMaybe(state.priceCnyPerGram, 2, "空")} | USD/CNY ${formatMaybe(state.usdCnyRate, 4, "空")} | GC近月 ${formatMaybe(state.gcFrontClose, 2, "空")}(${formatMaybe(state.gcFrontVolume, 0, "空")}) | DXY代理 ${formatMaybe(state.dollarProxyClose, 2, "空")} | ${state.direction} | 建议 ${state.highFrequencyAdvice}`; }
-function buildDailySummary(dailyContext, dailyAdvice) { return `${dailyContext.date} | GC ${formatMaybe(dailyContext.gcFrontClose, 2, "空")}(${formatMaybe(dailyContext.gcFrontVolume, 0, "空")}) | GLD ${formatMaybe(dailyContext.gldClose, 2, "空")}(${formatMaybe(dailyContext.gldVolume, 0, "空")}) | UUP ${formatMaybe(dailyContext.dollarProxyClose, 2, "空")}(${formatMaybe(dailyContext.dollarProxyVolume, 0, "空")}) | 10Y实际利率 ${formatMaybe(dailyContext.realYield10Y, 2, "空")}${dailyContext.realYield10Y === null ? "" : "%"} | ${dailyContext.commentary} | 建议 ${dailyAdvice}`; }
+function buildHighFrequencySummary(state) {
+  return `${state.checkedAtLocal} | XAU/USD ${formatMaybe(state.priceUsdPerOz, 2, "空")} | RMB/g ${formatMaybe(state.priceCnyPerGram, 2, "空")} | USD/CNY ${formatMaybe(state.usdCnyRate, 4, "空")} | GC近月 ${formatMaybe(state.gcFrontClose, 2, "空")}(${formatMaybe(state.gcFrontVolume, 0, "空")}) | GC持仓 ${formatMaybe(state.gcFrontOpenInterest, 0, "空")}(${formatMaybe(state.gcFrontOpenInterestChange, 0, "空")}) | 沪金主连 ${formatMaybe(state.shfeAuMainClose, 2, "空")}(${formatMaybe(state.shfeAuMainVolume, 0, "空")}) | 沪金持仓 ${formatMaybe(state.shfeAuMainOpenInterest, 0, "空")}(${formatMaybe(state.shfeAuMainOpenInterestChange, 0, "空")}) | 黄金ETF华安 ${formatMaybe(state.cnGoldEtfClose, 3, "空")} | 黄金ETF中银 ${formatMaybe(state.cnGoldEtfAltClose, 3, "空")} | Au99.99 ${formatMaybe(state.sgeAu9999, 2, "空")} | Au(T+D) ${formatMaybe(state.sgeAuTd, 2, "空")} | 上金所现货溢价 ${formatMaybe(state.sgeSpotPremiumCnyPerGram, 2, "空")} | 沪金溢价 ${formatMaybe(state.shfeSpotPremiumCnyPerGram, 2, "空")} | DXY代理 ${formatMaybe(state.dollarProxyClose, 2, "空")} | ${state.direction} | 建议 ${state.highFrequencyAdvice}`;
+}
+
+function buildDailySummary(dailyContext, dailyAdvice) {
+  return `${dailyContext.date} | GC ${formatMaybe(dailyContext.gcFrontClose, 2, "空")}(${formatMaybe(dailyContext.gcFrontVolume, 0, "空")}) | GLD ${formatMaybe(dailyContext.gldClose, 2, "空")}(${formatMaybe(dailyContext.gldVolume, 0, "空")}) | UUP ${formatMaybe(dailyContext.dollarProxyClose, 2, "空")}(${formatMaybe(dailyContext.dollarProxyVolume, 0, "空")}) | 10Y实际利率 ${formatMaybe(dailyContext.realYield10Y, 2, "空")}${dailyContext.realYield10Y === null ? "" : "%"} | 沪金主连 ${formatMaybe(dailyContext.shfeAuMainClose, 2, "空")}(${formatMaybe(dailyContext.shfeAuMainVolume, 0, "空")}) | 沪金持仓 ${formatMaybe(dailyContext.shfeAuMainOpenInterest, 0, "空")}(${formatMaybe(dailyContext.shfeAuMainOpenInterestChange, 0, "空")}) | 黄金ETF华安 ${formatMaybe(dailyContext.cnGoldEtfClose, 3, "空")}(${formatMaybe(dailyContext.cnGoldEtfVolume, 0, "空")}) | 黄金ETF中银 ${formatMaybe(dailyContext.cnGoldEtfAltClose, 3, "空")}(${formatMaybe(dailyContext.cnGoldEtfAltVolume, 0, "空")}) | Au99.99 ${formatMaybe(dailyContext.sgeAu9999, 2, "空")} | Au(T+D) ${formatMaybe(dailyContext.sgeAuTd, 2, "空")} | 上金所现货溢价 ${formatMaybe(dailyContext.sgeSpotPremiumCnyPerGram, 2, "空")} | 沪金溢价 ${formatMaybe(dailyContext.shfeSpotPremiumCnyPerGram, 2, "空")} | ${dailyContext.commentary} | 建议 ${dailyAdvice}`;
+}
+
 function buildSourceDiagnosticsText(state) {
   const lines = [
     `检查时间：${state.checkedAtLocal}`,
@@ -684,6 +1039,10 @@ function buildSourceDiagnosticsText(state) {
     `GC近月 来源：${formatSourceLabel(state.sourceSummary?.gc)}`,
     `GLD 来源：${formatSourceLabel(state.sourceSummary?.gld)}`,
     `UUP/DXY代理 来源：${formatSourceLabel(state.sourceSummary?.dxy)}`,
+    `黄金ETF华安 来源：${formatSourceLabel(state.sourceSummary?.cnGoldEtf)}`,
+    `黄金ETF中银 来源：${formatSourceLabel(state.sourceSummary?.cnGoldEtfAlt)}`,
+    `沪金主连 来源：${formatSourceLabel(state.sourceSummary?.shfeAuMain)}`,
+    `上金所延时行情 来源：${formatSourceLabel(state.sourceSummary?.sgeDelayed)}`,
     `10年实际利率 来源：${formatSourceLabel(state.sourceSummary?.realYield)}`,
   ];
   const fallbackDetails = buildFallbackDetails(state.fetchDiagnostics);
@@ -795,6 +1154,19 @@ export async function fetchEastmoneyFuturesQuote(quoteCode, fetchImpl = fetch) {
   );
 }
 
+export async function fetchEastmoneyFuturesListQuote(listCode, symbolDm, fetchImpl = fetch) {
+  const url = `https://futsseapi.eastmoney.com/list/${encodeURIComponent(listCode)}?orderBy=zdf&sort=desc&pageSize=500&pageIndex=0&token=58b2fa8f54638b60b87d6b7eed523352`;
+  return fetchJsonResource(
+    url,
+    {
+      headers: { "user-agent": "codex-gold-monitor/1.0", referer: "https://quote.eastmoney.com/", accept: "application/json,text/plain,*/*" },
+      parse: (payload) => parseEastmoneyFuturesListJson(payload, symbolDm),
+      errorLabel: `拉取东方财富期货列表 ${symbolDm} 失败`,
+    },
+    fetchImpl,
+  );
+}
+
 export async function fetchEastmoneyStockQuote(secid, fetchImpl = fetch) {
   const fields = ["f43", "f44", "f45", "f46", "f47", "f48", "f57", "f58", "f59", "f60", "f152", "f169", "f170"].join(",");
   const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${encodeURIComponent(secid)}&fields=${fields}&invt=2&fltt=1&ut=fa5fd1943c7b386f172d6893dbfba10b`;
@@ -804,6 +1176,18 @@ export async function fetchEastmoneyStockQuote(secid, fetchImpl = fetch) {
       headers: { "user-agent": "codex-gold-monitor/1.0", referer: "https://quote.eastmoney.com/", accept: "application/json,text/plain,*/*" },
       parse: parseEastmoneyStockQuoteJson,
       errorLabel: `拉取东方财富 ${secid} 失败`,
+    },
+    fetchImpl,
+  );
+}
+
+export async function fetchSgeDelayedQuotes(url, fetchImpl = fetch) {
+  return fetchTextResource(
+    url,
+    {
+      headers: { "user-agent": "codex-gold-monitor/1.0", referer: "https://www.sge.com.cn/", accept: "text/html,application/xhtml+xml,*/*" },
+      parse: parseSgeDelayedHtml,
+      errorLabel: "拉取上金所延时行情失败",
     },
     fetchImpl,
   );
@@ -963,7 +1347,7 @@ function mergeSourceSummary(summary, candidate) {
 export async function run(fetchImpl = fetch) {
   const config = await loadConfig();
   const previousState = await readPreviousState();
-  const [goldResult, fxResult, gcResult, gldResult, dollarResult, realYieldResult] = await Promise.all([
+  const [goldResult, fxResult, gcResult, gldResult, dollarResult, realYieldResult, cnGoldEtfResult, cnGoldEtfAltResult, shfeAuMainResult, sgeDelayedResult] = await Promise.all([
     resolveMergedSources("gold", [
       () => fetchSinaQuote(config.dataSource.cnGoldSymbols, fetchImpl),
       () => fetchGoldApiQuote(config.dataSource.goldApiSymbol, fetchImpl),
@@ -993,13 +1377,43 @@ export async function run(fetchImpl = fetch) {
       () => fetchTreasuryRealYield(config.dataSource.treasuryRealYieldUrl, fetchImpl),
       () => fetchFredSeries(config.dataSource.realYieldFredSeries, fetchImpl),
     ], { needDateValue: true }),
+    resolveMergedSources("cnGoldEtf", [
+      () => fetchEastmoneyStockQuote(config.dataSource.eastmoneyCnGoldEtfSecid, fetchImpl),
+    ], { needVolume: true }),
+    resolveMergedSources("cnGoldEtfAlt", [
+      () => fetchEastmoneyStockQuote(config.dataSource.eastmoneyCnGoldEtfAltSecid, fetchImpl),
+    ], { needVolume: true }),
+    resolveMergedSources("shfeAuMain", [
+      () => fetchEastmoneyFuturesListQuote(config.dataSource.eastmoneyShfeAuMainListCode, config.dataSource.eastmoneyShfeAuMainDm, fetchImpl),
+      () => fetchSinaQuote(config.dataSource.cnShfeGoldSymbols, fetchImpl),
+    ], { needVolume: true }),
+    resolveMergedSources("sgeDelayed", [
+      () => fetchSgeDelayedQuotes(config.dataSource.sgeDelayedUrl, fetchImpl),
+    ]),
   ]);
-  const fetchDiagnostics = { gold: goldResult.errors, fx: fxResult.errors, gc: gcResult.errors, gld: gldResult.errors, dxy: dollarResult.errors, realYield: realYieldResult.errors };
+  const fetchDiagnostics = {
+    gold: goldResult.errors,
+    fx: fxResult.errors,
+    gc: gcResult.errors,
+    gld: gldResult.errors,
+    dxy: dollarResult.errors,
+    realYield: realYieldResult.errors,
+    cnGoldEtf: cnGoldEtfResult.errors,
+    cnGoldEtfAlt: cnGoldEtfAltResult.errors,
+    shfeAuMain: shfeAuMainResult.errors,
+    sgeDelayed: sgeDelayedResult.errors,
+  };
   const status = buildStatus(
     goldResult.value,
     fxResult.value,
     gcResult.value,
     dollarResult.value,
+    {
+      cnGoldEtf: cnGoldEtfResult.value,
+      cnGoldEtfAlt: cnGoldEtfAltResult.value,
+      shfeAuMain: shfeAuMainResult.value,
+      sgeDelayed: sgeDelayedResult.value,
+    },
     previousState,
     config,
     fetchDiagnostics,
@@ -1009,12 +1423,37 @@ export async function run(fetchImpl = fetch) {
       gc: gcResult.sourceSummary,
       gld: gldResult.sourceSummary,
       dxy: dollarResult.sourceSummary,
+      cnGoldEtf: cnGoldEtfResult.sourceSummary,
+      cnGoldEtfAlt: cnGoldEtfAltResult.sourceSummary,
+      shfeAuMain: shfeAuMainResult.sourceSummary,
+      sgeDelayed: sgeDelayedResult.sourceSummary,
       realYield: realYieldResult.sourceSummary,
     },
   );
-  const dailyContext = buildDailyContext(gcResult.value, gldResult.value, dollarResult.value, realYieldResult.value);
+  const dailyContext = buildDailyContext(gcResult.value, gldResult.value, dollarResult.value, realYieldResult.value, {
+    cnGoldEtf: cnGoldEtfResult.value,
+    cnGoldEtfAlt: cnGoldEtfAltResult.value,
+    shfeAuMain: shfeAuMainResult.value,
+    sgeDelayed: sgeDelayedResult.value,
+    spotCnyPerGram: status.priceCnyPerGram,
+  });
   await writeOutputs(status, dailyContext);
   return { ...status, dailyContext };
+}
+
+function stripHtml(text) {
+  return String(text).replace(/<[^>]+>/g, "");
+}
+
+function toNullableNumber(value) {
+  const normalized = String(value ?? "").replace(/,/g, "").trim();
+  if (!normalized || normalized === "-" || normalized === "--") return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function round3(value) {
+  return Math.round(value * 1000) / 1000;
 }
 
 async function retryFetch(operation, label) {

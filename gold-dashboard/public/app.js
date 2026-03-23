@@ -46,6 +46,14 @@ const el = {
   macroTitleTerm: qs("#macro-title-term"),
   volumeRange: qs("#volume-range"),
   volumeTitleTerm: qs("#volume-title-term"),
+  gcOiRange: qs("#gc-oi-range"),
+  gcOiTitleTerm: qs("#gc-oi-title-term"),
+  cnEtfRange: qs("#cn-etf-range"),
+  cnEtfTitleTerm: qs("#cn-etf-title-term"),
+  sgeRange: qs("#sge-range"),
+  sgeTitleTerm: qs("#sge-title-term"),
+  premiumRange: qs("#premium-range"),
+  premiumTitleTerm: qs("#premium-title-term"),
   dailyGldRange: qs("#daily-gld-range"),
   dailyGldTitleTerm: qs("#daily-gld-title-term"),
   dailyRealRange: qs("#daily-real-range"),
@@ -60,6 +68,10 @@ const el = {
   fxChart: qs("#fx-chart"),
   macroChart: qs("#macro-chart"),
   volumeChart: qs("#volume-chart"),
+  gcOiChart: qs("#gc-oi-chart"),
+  cnEtfChart: qs("#cn-etf-chart"),
+  sgeChart: qs("#sge-chart"),
+  premiumChart: qs("#premium-chart"),
   dailyGldChart: qs("#daily-gld-chart"),
   dailyRealChart: qs("#daily-real-chart"),
   dailyUupChart: qs("#daily-uup-chart"),
@@ -250,6 +262,48 @@ function render() {
     digits: 0,
     unit: "手",
   });
+  renderDualAxisChart(el.gcOiChart, combined.longTerm, {
+    xLabel: "时间",
+    leftAxisLabel: "持仓量",
+    rightAxisLabel: "持仓变化",
+    leftSeries: [{ key: "gcFrontOpenInterest", label: "GC持仓量", color: "#f97316", digits: 0, unit: "手" }],
+    rightSeries: [{ key: "gcFrontOpenInterestChange", label: "持仓变化", color: "#60a5fa", digits: 0, unit: "手" }],
+  });
+  renderDualAxisChart(el.cnEtfChart, combined.daily, {
+    xLabel: "时间",
+    leftAxisLabel: "ETF价格",
+    rightAxisLabel: "成交额",
+    leftSeries: [
+      { key: "cnGoldEtfClose", label: "518880", color: "#facc15", digits: 3, unit: "元" },
+      { key: "cnGoldEtfAltClose", label: "518890", color: "#60a5fa", digits: 3, unit: "元" },
+    ],
+    rightSeries: [
+      { key: "cnGoldEtfTurnover", label: "518880成交额", color: "#22c55e", digits: 0, unit: "元" },
+      { key: "cnGoldEtfAltTurnover", label: "518890成交额", color: "#f97316", digits: 0, unit: "元" },
+    ],
+  });
+  renderDualAxisChart(el.sgeChart, combined.daily, {
+    xLabel: "时间",
+    leftAxisLabel: "元/克",
+    rightAxisLabel: "",
+    leftSeries: [
+      { key: "shfeAuMainClose", label: "沪金主连", color: "#34d399", digits: 2, unit: "元/克" },
+      { key: "sgeAu9999", label: "Au99.99", color: "#f59e0b", digits: 2, unit: "元/克" },
+      { key: "sgeAuTd", label: "Au(T+D)", color: "#38bdf8", digits: 2, unit: "元/克" },
+    ],
+    rightSeries: [],
+  });
+  renderDualAxisChart(el.premiumChart, combined.daily, {
+    xLabel: "时间",
+    leftAxisLabel: "元/克",
+    rightAxisLabel: "",
+    leftSeries: [
+      { key: "shfeSpotPremiumCnyPerGram", label: "沪金溢价", color: "#22c55e", digits: 2, unit: "元/克" },
+      { key: "sgeSpotPremiumCnyPerGram", label: "Au99.99溢价", color: "#f59e0b", digits: 2, unit: "元/克" },
+      { key: "sgeTdSpreadCnyPerGram", label: "T+D价差", color: "#8b5cf6", digits: 2, unit: "元/克" },
+    ],
+    rightSeries: [],
+  });
   renderSingleLineChart(el.dailyGldChart, combined.daily, {
     xLabel: "时间",
     yLabel: "GLD",
@@ -279,7 +333,22 @@ function buildCombinedSeries(historyRows, highresRows, live) {
     usdCnyRate: sanitizePositive(row.usdCnyRate),
     gcFrontClose: sanitizePositive(row.gcFrontClose),
     gcFrontVolume: sanitizePositive(row.gcFrontVolume),
+    gcFrontOpenInterest: sanitizePositive(row.gcFrontOpenInterest),
+    gcFrontOpenInterestChange: toFiniteOrNull(row.gcFrontOpenInterestChange),
     gldClose: sanitizePositive(row.gldClose),
+    cnGoldEtfClose: sanitizePositive(row.cnGoldEtfClose),
+    cnGoldEtfTurnover: sanitizePositive(row.cnGoldEtfTurnover),
+    cnGoldEtfAltClose: sanitizePositive(row.cnGoldEtfAltClose),
+    cnGoldEtfAltTurnover: sanitizePositive(row.cnGoldEtfAltTurnover),
+    shfeAuMainClose: sanitizePositive(row.shfeAuMainClose),
+    shfeAuMainVolume: sanitizePositive(row.shfeAuMainVolume),
+    shfeAuMainOpenInterest: sanitizePositive(row.shfeAuMainOpenInterest),
+    shfeAuMainOpenInterestChange: toFiniteOrNull(row.shfeAuMainOpenInterestChange),
+    sgeSpotPremiumCnyPerGram: toFiniteOrNull(row.sgeSpotPremiumCnyPerGram),
+    sgeTdSpreadCnyPerGram: toFiniteOrNull(row.sgeTdSpreadCnyPerGram),
+    shfeSpotPremiumCnyPerGram: toFiniteOrNull(row.shfeSpotPremiumCnyPerGram),
+    sgeAu9999: sanitizePositive(row.sgeAu9999),
+    sgeAuTd: sanitizePositive(row.sgeAuTd),
     uupClose: sanitizePositive(row.uupClose),
     realYield10Y: null,
   }));
@@ -299,7 +368,22 @@ function buildCombinedSeries(historyRows, highresRows, live) {
       usdCnyRate: sanitizePositive(row.usdCnyRate),
       gcFrontClose: sanitizePositive(row.gcFrontClose),
       gcFrontVolume: sanitizePositive(row.gcFrontVolume),
+      gcFrontOpenInterest: sanitizePositive(row.gcFrontOpenInterest),
+      gcFrontOpenInterestChange: toFiniteOrNull(row.gcFrontOpenInterestChange),
       gldClose: sanitizePositive(row.gldClose),
+      cnGoldEtfClose: sanitizePositive(row.cnGoldEtfClose),
+      cnGoldEtfTurnover: sanitizePositive(row.cnGoldEtfTurnover),
+      cnGoldEtfAltClose: sanitizePositive(row.cnGoldEtfAltClose),
+      cnGoldEtfAltTurnover: sanitizePositive(row.cnGoldEtfAltTurnover),
+      shfeAuMainClose: sanitizePositive(row.shfeAuMainClose),
+      shfeAuMainVolume: sanitizePositive(row.shfeAuMainVolume),
+      shfeAuMainOpenInterest: sanitizePositive(row.shfeAuMainOpenInterest),
+      shfeAuMainOpenInterestChange: toFiniteOrNull(row.shfeAuMainOpenInterestChange),
+      sgeSpotPremiumCnyPerGram: toFiniteOrNull(row.sgeSpotPremiumCnyPerGram),
+      sgeTdSpreadCnyPerGram: toFiniteOrNull(row.sgeTdSpreadCnyPerGram),
+      shfeSpotPremiumCnyPerGram: toFiniteOrNull(row.shfeSpotPremiumCnyPerGram),
+      sgeAu9999: sanitizePositive(row.sgeAu9999),
+      sgeAuTd: sanitizePositive(row.sgeAuTd),
       uupClose: sanitizePositive(row.uupClose),
       realYield10Y: row.realYield10Y,
     }));
@@ -311,18 +395,57 @@ function buildCombinedSeries(historyRows, highresRows, live) {
     pointTime: row.date,
     pointDate: new Date(`${row.date}T00:00:00`),
     gldClose: sanitizePositive(row.gldClose),
+    cnGoldEtfClose: sanitizePositive(row.cnGoldEtfClose),
+    cnGoldEtfTurnover: sanitizePositive(row.cnGoldEtfTurnover),
+    cnGoldEtfAltClose: sanitizePositive(row.cnGoldEtfAltClose),
+    cnGoldEtfAltTurnover: sanitizePositive(row.cnGoldEtfAltTurnover),
+    shfeAuMainClose: sanitizePositive(row.shfeAuMainClose),
+    shfeAuMainVolume: sanitizePositive(row.shfeAuMainVolume),
+    shfeAuMainOpenInterest: sanitizePositive(row.shfeAuMainOpenInterest),
+    shfeAuMainOpenInterestChange: toFiniteOrNull(row.shfeAuMainOpenInterestChange),
+    sgeSpotPremiumCnyPerGram: toFiniteOrNull(row.sgeSpotPremiumCnyPerGram),
+    sgeTdSpreadCnyPerGram: toFiniteOrNull(row.sgeTdSpreadCnyPerGram),
+    shfeSpotPremiumCnyPerGram: toFiniteOrNull(row.shfeSpotPremiumCnyPerGram),
+    sgeAu9999: sanitizePositive(row.sgeAu9999),
+    sgeAuTd: sanitizePositive(row.sgeAuTd),
     uupClose: sanitizePositive(row.uupClose),
     realYield10Y: row.realYield10Y,
   })).concat(highResHistory.map((row) => ({
     pointTime: row.pointTime,
     pointDate: row.pointDate,
     gldClose: row.gldClose,
+    cnGoldEtfClose: row.cnGoldEtfClose,
+    cnGoldEtfTurnover: row.cnGoldEtfTurnover,
+    cnGoldEtfAltClose: row.cnGoldEtfAltClose,
+    cnGoldEtfAltTurnover: row.cnGoldEtfAltTurnover,
+    shfeAuMainClose: row.shfeAuMainClose,
+    shfeAuMainVolume: row.shfeAuMainVolume,
+    shfeAuMainOpenInterest: row.shfeAuMainOpenInterest,
+    shfeAuMainOpenInterestChange: row.shfeAuMainOpenInterestChange,
+    sgeSpotPremiumCnyPerGram: row.sgeSpotPremiumCnyPerGram,
+    sgeTdSpreadCnyPerGram: row.sgeTdSpreadCnyPerGram,
+    shfeSpotPremiumCnyPerGram: row.shfeSpotPremiumCnyPerGram,
+    sgeAu9999: row.sgeAu9999,
+    sgeAuTd: row.sgeAuTd,
     uupClose: row.uupClose,
     realYield10Y: null,
   }))).concat((live.daily || []).map((row) => ({
     pointTime: row.date,
     pointDate: new Date(`${row.date}T23:59:00`),
     gldClose: sanitizePositive(row.gldClose),
+    cnGoldEtfClose: sanitizePositive(row.cnGoldEtfClose),
+    cnGoldEtfTurnover: sanitizePositive(row.cnGoldEtfTurnover),
+    cnGoldEtfAltClose: sanitizePositive(row.cnGoldEtfAltClose),
+    cnGoldEtfAltTurnover: sanitizePositive(row.cnGoldEtfAltTurnover),
+    shfeAuMainClose: sanitizePositive(row.shfeAuMainClose),
+    shfeAuMainVolume: sanitizePositive(row.shfeAuMainVolume),
+    shfeAuMainOpenInterest: sanitizePositive(row.shfeAuMainOpenInterest),
+    shfeAuMainOpenInterestChange: toFiniteOrNull(row.shfeAuMainOpenInterestChange),
+    sgeSpotPremiumCnyPerGram: toFiniteOrNull(row.sgeSpotPremiumCnyPerGram),
+    sgeTdSpreadCnyPerGram: toFiniteOrNull(row.sgeTdSpreadCnyPerGram),
+    shfeSpotPremiumCnyPerGram: toFiniteOrNull(row.shfeSpotPremiumCnyPerGram),
+    sgeAu9999: sanitizePositive(row.sgeAu9999),
+    sgeAuTd: sanitizePositive(row.sgeAuTd),
     uupClose: sanitizePositive(row.uupClose),
     realYield10Y: row.realYield10Y,
   }))).sort((left, right) => left.pointDate - right.pointDate);
@@ -363,8 +486,25 @@ function buildLiveFiveMinuteRows(rows) {
         usdCnyRate: sanitizePositive(row.usdCnyRate),
         gcFrontClose: sanitizePositive(row.gcFrontClose),
         gcFrontVolume: sanitizePositive(row.gcFrontVolume),
+        gcFrontOpenInterest: sanitizePositive(row.gcFrontOpenInterest),
+        gcFrontOpenInterestChange: toFiniteOrNull(row.gcFrontOpenInterestChange),
         uupClose: sanitizePositive(row.uupClose),
         dollarProxyVolume: sanitizePositive(row.dollarProxyVolume),
+        cnGoldEtfClose: sanitizePositive(row.cnGoldEtfClose),
+        cnGoldEtfVolume: sanitizePositive(row.cnGoldEtfVolume),
+        cnGoldEtfTurnover: sanitizePositive(row.cnGoldEtfTurnover),
+        cnGoldEtfAltClose: sanitizePositive(row.cnGoldEtfAltClose),
+        cnGoldEtfAltVolume: sanitizePositive(row.cnGoldEtfAltVolume),
+        cnGoldEtfAltTurnover: sanitizePositive(row.cnGoldEtfAltTurnover),
+        shfeAuMainClose: sanitizePositive(row.shfeAuMainClose),
+        shfeAuMainVolume: sanitizePositive(row.shfeAuMainVolume),
+        shfeAuMainOpenInterest: sanitizePositive(row.shfeAuMainOpenInterest),
+        shfeAuMainOpenInterestChange: toFiniteOrNull(row.shfeAuMainOpenInterestChange),
+        sgeAu9999: sanitizePositive(row.sgeAu9999),
+        sgeAuTd: sanitizePositive(row.sgeAuTd),
+        sgeSpotPremiumCnyPerGram: toFiniteOrNull(row.sgeSpotPremiumCnyPerGram),
+        sgeTdSpreadCnyPerGram: toFiniteOrNull(row.sgeTdSpreadCnyPerGram),
+        shfeSpotPremiumCnyPerGram: toFiniteOrNull(row.shfeSpotPremiumCnyPerGram),
       });
     }
   }
@@ -372,13 +512,25 @@ function buildLiveFiveMinuteRows(rows) {
   const sortedBuckets = [...buckets.values()].sort((left, right) => left.pointDate - right.pointDate);
   let lastGcCumulative = null;
   let lastUupCumulative = null;
+  let lastEtfCumulative = null;
+  let lastEtfAltCumulative = null;
+  let lastShfeCumulative = null;
   for (const row of sortedBuckets) {
     const nextGcCumulative = sanitizePositive(row.gcFrontVolume);
     const nextUupCumulative = sanitizePositive(row.dollarProxyVolume);
+    const nextEtfCumulative = sanitizePositive(row.cnGoldEtfVolume);
+    const nextEtfAltCumulative = sanitizePositive(row.cnGoldEtfAltVolume);
+    const nextShfeCumulative = sanitizePositive(row.shfeAuMainVolume);
     row.gcFrontVolume = deriveIntervalVolume(nextGcCumulative, lastGcCumulative);
     row.dollarProxyVolume = deriveIntervalVolume(nextUupCumulative, lastUupCumulative);
+    row.cnGoldEtfVolume = deriveIntervalVolume(nextEtfCumulative, lastEtfCumulative);
+    row.cnGoldEtfAltVolume = deriveIntervalVolume(nextEtfAltCumulative, lastEtfAltCumulative);
+    row.shfeAuMainVolume = deriveIntervalVolume(nextShfeCumulative, lastShfeCumulative);
     if (Number.isFinite(nextGcCumulative)) lastGcCumulative = nextGcCumulative;
     if (Number.isFinite(nextUupCumulative)) lastUupCumulative = nextUupCumulative;
+    if (Number.isFinite(nextEtfCumulative)) lastEtfCumulative = nextEtfCumulative;
+    if (Number.isFinite(nextEtfAltCumulative)) lastEtfAltCumulative = nextEtfAltCumulative;
+    if (Number.isFinite(nextShfeCumulative)) lastShfeCumulative = nextShfeCumulative;
     delete row.sourceTime;
   }
   return sortedBuckets;
@@ -415,6 +567,12 @@ function renderKpis(historySummary, live, combined) {
     ["人民币金价", `${toFixed(snapshot.priceCnyPerGram, 2)} 元/克`, `区间 ${formatRange(historySummary.cnyRange, "元/克")}`],
     ["USD/CNY", toFixed(snapshot.usdCnyRate, 4), "美元兑人民币汇率"],
     ["GC近月成交量", formatInteger(snapshot.gcFrontVolume), `总点数 ${formatInteger(combined.longTerm.length)}`],
+    ["GC近月持仓量", formatInteger(snapshot.gcFrontOpenInterest), `变化 ${formatSignedInteger(snapshot.gcFrontOpenInterestChange)}`],
+    ["黄金ETF华安", toFixed(snapshot.cnGoldEtfClose, 3), `成交额 ${formatAmount(snapshot.cnGoldEtfTurnover)}`],
+    ["黄金ETF中银", toFixed(snapshot.cnGoldEtfAltClose, 3), `成交额 ${formatAmount(snapshot.cnGoldEtfAltTurnover)}`],
+    ["沪金主连", `${toFixed(snapshot.shfeAuMainClose, 2)} 元/克`, `成交量 ${formatInteger(snapshot.shfeAuMainVolume)} / 持仓 ${formatInteger(snapshot.shfeAuMainOpenInterest)}`],
+    ["境内溢价", `${toFixed(snapshot.shfeSpotPremiumCnyPerGram, 2)} 元/克`, `上金所现货溢价 ${toFixed(snapshot.sgeSpotPremiumCnyPerGram, 2)} / T+D价差 ${toFixed(snapshot.sgeTdSpreadCnyPerGram, 2)}`],
+    ["上金所Au99.99", `${toFixed(snapshot.sgeAu9999, 2)} / ${toFixed(snapshot.sgeAuTd, 2)}`, "Au99.99 / Au(T+D)"],
     ["美国10年实际利率", `${toFixed(live.snapshot?.dailyContext?.realYield10Y, 2)}%`, "黄金中线核心变量"],
     ["报警状态", snapshot.isAlert ? "触发中" : "正常", snapshot.thresholdText || "未触发阈值"],
     ["实时建议", snapshot.direction || "-", ""],
@@ -435,6 +593,10 @@ function renderSummaryText(historySummary, live, combined) {
   const fxHint = `长周期区间 ${formatRange(historySummary.fxRange, "")}`;
   const macroHint = `实时趋势 ${live.summary?.trendLabel || "-"}，当前总点数 ${formatInteger(combined.longTerm.length)}`;
   const volumeHint = maxValue(combined.longTerm, "gcFrontVolume") == null ? "当前没有有效成交量数据" : `当前窗口最大成交量 ${formatInteger(maxValue(combined.longTerm, "gcFrontVolume"))} 手`;
+  const gcOiHint = `当前持仓量 ${formatInteger(snapshot.gcFrontOpenInterest)}，变化 ${formatSignedInteger(snapshot.gcFrontOpenInterestChange)}`;
+  const cnEtfHint = `518880 区间 ${formatRange(historySummary.cnGoldEtfRange, "元")}；518890 区间 ${formatRange(historySummary.cnGoldEtfAltRange, "元")}；最近成交额区间 ${formatRange(live.summary?.cnGoldEtfAltTurnoverRange, "元")}`;
+  const sgeHint = `沪金主连区间 ${formatRange(historySummary.shfeAuMainRange, "元/克")}；Au99.99 ${toFixed(snapshot.sgeAu9999, 2)}；Au(T+D) ${toFixed(snapshot.sgeAuTd, 2)}`;
+  const premiumHint = `沪金溢价区间 ${formatRange(live.summary?.shfeSpotPremiumRange, "元/克")}；Au99.99 溢价 ${formatRange(live.summary?.sgeSpotPremiumRange, "元/克")}；T+D 价差 ${formatRange(live.summary?.sgeTdSpreadRange, "元/克")}`;
   const dailyGldHint = "机构黄金持仓代理";
   const dailyRealHint = "紫色线为美国10年实际利率";
   const dailyUupHint = "美元指数代理 ETF";
@@ -442,6 +604,10 @@ function renderSummaryText(historySummary, live, combined) {
   el.fxRange.textContent = "";
   el.macroRange.textContent = "";
   el.volumeRange.textContent = "";
+  el.gcOiRange.textContent = "";
+  el.cnEtfRange.textContent = "";
+  el.sgeRange.textContent = "";
+  el.premiumRange.textContent = "";
   el.dailyGldRange.textContent = "";
   el.dailyRealRange.textContent = "";
   el.dailyUupRange.textContent = "";
@@ -449,6 +615,10 @@ function renderSummaryText(historySummary, live, combined) {
   extendGlossaryDescription(el.fxTitleTerm, fxHint);
   extendGlossaryDescription(el.macroTitleTerm, macroHint);
   extendGlossaryDescription(el.volumeTitleTerm, volumeHint);
+  extendGlossaryDescription(el.gcOiTitleTerm, gcOiHint);
+  extendGlossaryDescription(el.cnEtfTitleTerm, cnEtfHint);
+  extendGlossaryDescription(el.sgeTitleTerm, sgeHint);
+  extendGlossaryDescription(el.premiumTitleTerm, premiumHint);
   extendGlossaryDescription(el.dailyGldTitleTerm, dailyGldHint);
   extendGlossaryDescription(el.dailyRealTitleTerm, dailyRealHint);
   extendGlossaryDescription(el.dailyUupTitleTerm, dailyUupHint);
@@ -1177,6 +1347,22 @@ function formatInteger(value) {
   return isFiniteNumber(value) ? new Intl.NumberFormat("zh-CN").format(Math.round(value)) : "-";
 }
 
+function formatSignedInteger(value) {
+  if (!isFiniteNumber(value)) return "-";
+  const rounded = Math.round(value);
+  const formatted = new Intl.NumberFormat("zh-CN").format(Math.abs(rounded));
+  if (rounded > 0) return `+${formatted}`;
+  if (rounded < 0) return `-${formatted}`;
+  return "0";
+}
+
+function formatAmount(value) {
+  if (!isFiniteNumber(value)) return "-";
+  if (Math.abs(value) >= 1e8) return `${(value / 1e8).toFixed(2)} 亿元`;
+  if (Math.abs(value) >= 1e4) return `${(value / 1e4).toFixed(2)} 万元`;
+  return `${new Intl.NumberFormat("zh-CN").format(Math.round(value))} 元`;
+}
+
 function maxValue(rows, key) {
   const values = rows.map((row) => row[key]).filter(isFiniteNumber);
   return values.length ? Math.max(...values) : null;
@@ -1188,6 +1374,10 @@ function pad2(value) {
 
 function isFiniteNumber(value) {
   return Number.isFinite(value);
+}
+
+function toFiniteOrNull(value) {
+  return Number.isFinite(value) ? value : null;
 }
 
 function sanitizePositive(value) {

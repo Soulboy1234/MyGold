@@ -157,6 +157,61 @@
           </div>
           <div class="chart-wrap"><svg id="daily-uup-chart" class="chart"></svg></div>
         </article>
+        <article class="panel">
+          <div class="panel-top">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">持仓与资金</p>
+                <h2><span id="gc-oi-title-term" class="glossary-term" data-term-title="GC 持仓量 / 持仓变化" data-term-description="COMEX 黄金近月持仓量与持仓变化，可辅助判断新增多空参与、逼仓和平仓式波动。">GC 持仓量 / 持仓变化</span></h2>
+              </div>
+              <p id="gc-oi-range" class="panel-meta">-</p>
+            </div>
+            <div class="chart-toolbar" data-chart="gc-oi-chart"></div>
+          </div>
+          <div class="chart-wrap"><svg id="gc-oi-chart" class="chart"></svg></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-top">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">国内资金面</p>
+                <h2><span id="cn-etf-title-term" class="glossary-term" data-term-title="国内黄金 ETF" data-term-description="国内黄金 ETF 价格与成交额，用来观察场内黄金资金参与度和趋势强弱。这里同时展示 518880 和 518890。">黄金ETF 518880 / 518890</span></h2>
+              </div>
+              <p id="cn-etf-range" class="panel-meta">-</p>
+            </div>
+            <div class="chart-toolbar" data-chart="cn-etf-chart"></div>
+          </div>
+          <div class="chart-wrap"><svg id="cn-etf-chart" class="chart"></svg></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-top">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">上金所</p>
+                <h2><span id="sge-title-term" class="glossary-term" data-term-title="沪金主连 / SGE" data-term-description="同时观察沪金主连、上海黄金交易所 Au99.99 与 Au(T+D)，帮助判断境内黄金价格和期限结构。">沪金主连 / Au99.99 / Au(T+D)</span></h2>
+              </div>
+              <p id="sge-range" class="panel-meta">-</p>
+            </div>
+            <div class="chart-toolbar" data-chart="sge-chart"></div>
+          </div>
+          <div class="chart-wrap"><svg id="sge-chart" class="chart"></svg></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-top">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">境内价差</p>
+                <h2><span id="premium-title-term" class="glossary-term" data-term-title="国内黄金溢价 / 价差" data-term-description="观察沪金主连与人民币现货金价、上金所 Au99.99 与 Au(T+D) 的价差，辅助判断境内供需与期限结构变化。">沪金 / 上金所溢价与价差</span></h2>
+              </div>
+              <p id="premium-range" class="panel-meta">-</p>
+            </div>
+            <div class="chart-toolbar" data-chart="premium-chart"></div>
+          </div>
+          <div class="chart-wrap"><svg id="premium-chart" class="chart"></svg></div>
+        </article>
       </section>
     </div>
     <script type="module" src="/app.js"></script>

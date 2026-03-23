@@ -1,0 +1,7 @@
+{
+  "version": "V1.2.0",
+  "updatedAt": "2026-03-23 21:20:00 +08:00",
+  "basePath": "../..",
+  "snapshotPath": ".",
+  "note": "Expanded domestic gold market signals, raised high-resolution history capacity, added backfill helpers, and restored backward-compatible monitor helpers after the data-stack refresh."
+}

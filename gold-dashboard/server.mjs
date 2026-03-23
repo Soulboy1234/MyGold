@@ -108,8 +108,8 @@ export async function loadDashboardData() {
   return {
     meta: {
       pollIntervalMs: POLL_INTERVAL_MS,
-      sourceDir: MONITOR_DIR,
-      historyDbFile: HISTORY_DB_FILE,
+      historyAvailable: existsSync(HISTORY_DB_FILE),
+      highresAvailable: existsSync(HIGHRES_DB_FILE),
       generatedAt: new Date().toISOString(),
       lastSuccessfulLoadAt: new Date().toISOString(),
       staleThresholdMs: LIVE_STALE_AFTER_MS,
@@ -132,9 +132,26 @@ async function loadHighFrequencyRows() {
       usdCnyRate: toNumber(row.usdCnyRate),
       gcFrontClose: toNumber(row.gcFrontClose),
       gcFrontVolume: toNumber(row.gcFrontVolume),
+      gcFrontOpenInterest: toNumber(row.gcFrontOpenInterest),
+      gcFrontOpenInterestChange: toNumber(row.gcFrontOpenInterestChange),
       uupClose: toNumber(row.dollarProxyClose),
       dollarProxyVolume: toNumber(row.dollarProxyVolume),
       dxyProxy: toNumber(row.dollarProxyClose),
+      cnGoldEtfClose: toNumber(row.cnGoldEtfClose),
+      cnGoldEtfVolume: toNumber(row.cnGoldEtfVolume),
+      cnGoldEtfTurnover: toNumber(row.cnGoldEtfTurnover),
+      cnGoldEtfAltClose: toNumber(row.cnGoldEtfAltClose),
+      cnGoldEtfAltVolume: toNumber(row.cnGoldEtfAltVolume),
+      cnGoldEtfAltTurnover: toNumber(row.cnGoldEtfAltTurnover),
+      shfeAuMainClose: toNumber(row.shfeAuMainClose),
+      shfeAuMainVolume: toNumber(row.shfeAuMainVolume),
+      shfeAuMainOpenInterest: toNumber(row.shfeAuMainOpenInterest),
+      shfeAuMainOpenInterestChange: toNumber(row.shfeAuMainOpenInterestChange),
+      sgeAu9999: toNumber(row.sgeAu9999),
+      sgeAuTd: toNumber(row.sgeAuTd),
+      sgeSpotPremiumCnyPerGram: toNumber(row.sgeSpotPremiumCnyPerGram),
+      sgeTdSpreadCnyPerGram: toNumber(row.sgeTdSpreadCnyPerGram),
+      shfeSpotPremiumCnyPerGram: toNumber(row.shfeSpotPremiumCnyPerGram),
       changePct: toNumber(row.changePct),
       direction: row.direction || "",
       advice: row.highFrequencyAdvice || "",
@@ -152,9 +169,26 @@ async function loadHighFrequencyRows() {
         usdCnyRate: toNumber(cells[3]),
         gcFrontClose: toNumber(cells[4]),
         gcFrontVolume: toNumber(cells[5]),
+        gcFrontOpenInterest: toNumber(cells[11]),
+        gcFrontOpenInterestChange: toNumber(cells[12]),
         uupClose: toNumber(cells[6]),
         dollarProxyVolume: null,
         dxyProxy: toNumber(cells[7]),
+        cnGoldEtfClose: toNumber(cells[13]),
+        cnGoldEtfVolume: toNumber(cells[14]),
+        cnGoldEtfTurnover: toNumber(cells[15]),
+        sgeAu9999: toNumber(cells[16]),
+        sgeAuTd: toNumber(cells[17]),
+        shfeAuMainClose: toNumber(cells[18]),
+        shfeAuMainVolume: toNumber(cells[19]),
+        shfeAuMainOpenInterest: toNumber(cells[20]),
+        shfeAuMainOpenInterestChange: toNumber(cells[21]),
+        cnGoldEtfAltClose: toNumber(cells[22]),
+        cnGoldEtfAltVolume: toNumber(cells[23]),
+        cnGoldEtfAltTurnover: toNumber(cells[24]),
+        sgeSpotPremiumCnyPerGram: toNumber(cells[25]),
+        sgeTdSpreadCnyPerGram: toNumber(cells[26]),
+        shfeSpotPremiumCnyPerGram: toNumber(cells[27]),
         changePct: toPercent(cells[8]),
         direction: cells[9] || "",
         advice: cells[10] || "",
@@ -174,6 +208,21 @@ async function loadDailyRows() {
       gcFrontVolume: toNumber(row.gcFrontVolume),
       gldClose: toNumber(row.gldClose),
       gldVolume: toNumber(row.gldVolume),
+      cnGoldEtfClose: toNumber(row.cnGoldEtfClose),
+      cnGoldEtfVolume: toNumber(row.cnGoldEtfVolume),
+      cnGoldEtfTurnover: toNumber(row.cnGoldEtfTurnover),
+      cnGoldEtfAltClose: toNumber(row.cnGoldEtfAltClose),
+      cnGoldEtfAltVolume: toNumber(row.cnGoldEtfAltVolume),
+      cnGoldEtfAltTurnover: toNumber(row.cnGoldEtfAltTurnover),
+      shfeAuMainClose: toNumber(row.shfeAuMainClose),
+      shfeAuMainVolume: toNumber(row.shfeAuMainVolume),
+      shfeAuMainOpenInterest: toNumber(row.shfeAuMainOpenInterest),
+      shfeAuMainOpenInterestChange: toNumber(row.shfeAuMainOpenInterestChange),
+      sgeAu9999: toNumber(row.sgeAu9999),
+      sgeAuTd: toNumber(row.sgeAuTd),
+      sgeSpotPremiumCnyPerGram: toNumber(row.sgeSpotPremiumCnyPerGram),
+      sgeTdSpreadCnyPerGram: toNumber(row.sgeTdSpreadCnyPerGram),
+      shfeSpotPremiumCnyPerGram: toNumber(row.shfeSpotPremiumCnyPerGram),
       uupClose: toNumber(row.dollarProxyClose),
       uupVolume: toNumber(row.dollarProxyVolume),
       realYield10Y: toNumber(row.realYield10Y),
@@ -192,6 +241,21 @@ async function loadDailyRows() {
         gcFrontVolume: toNumber(cells[2]),
         gldClose: toNumber(cells[3]),
         gldVolume: toNumber(cells[4]),
+        cnGoldEtfClose: toNumber(cells[10]),
+        cnGoldEtfVolume: toNumber(cells[11]),
+        cnGoldEtfTurnover: toNumber(cells[12]),
+        sgeAu9999: toNumber(cells[13]),
+        sgeAuTd: toNumber(cells[14]),
+        shfeAuMainClose: toNumber(cells[15]),
+        shfeAuMainVolume: toNumber(cells[16]),
+        shfeAuMainOpenInterest: toNumber(cells[17]),
+        shfeAuMainOpenInterestChange: toNumber(cells[18]),
+        cnGoldEtfAltClose: toNumber(cells[19]),
+        cnGoldEtfAltVolume: toNumber(cells[20]),
+        cnGoldEtfAltTurnover: toNumber(cells[21]),
+        sgeSpotPremiumCnyPerGram: toNumber(cells[22]),
+        sgeTdSpreadCnyPerGram: toNumber(cells[23]),
+        shfeSpotPremiumCnyPerGram: toNumber(cells[24]),
         uupClose: toNumber(cells[5]),
         uupVolume: toNumber(cells[6]),
         realYield10Y: toNumber(cells[7]),
@@ -267,6 +331,17 @@ function loadHistoryPayload() {
         gc_front_volume AS gcFrontVolume,
         gld_close AS gldClose,
         gld_volume AS gldVolume,
+        cn_gold_etf_close AS cnGoldEtfClose,
+        cn_gold_etf_volume AS cnGoldEtfVolume,
+        cn_gold_etf_turnover AS cnGoldEtfTurnover,
+        cn_gold_etf_alt_close AS cnGoldEtfAltClose,
+        cn_gold_etf_alt_volume AS cnGoldEtfAltVolume,
+        cn_gold_etf_alt_turnover AS cnGoldEtfAltTurnover,
+        shfe_au_main_close AS shfeAuMainClose,
+        shfe_au_main_volume AS shfeAuMainVolume,
+        shfe_au_main_open_interest AS shfeAuMainOpenInterest,
+        shfe_au_main_open_interest_change AS shfeAuMainOpenInterestChange,
+        shfe_spot_premium_cny_per_gram AS shfeSpotPremiumCnyPerGram,
         uup_close AS uupClose,
         uup_volume AS uupVolume,
         real_yield_10y AS realYield10Y,
@@ -277,6 +352,7 @@ function loadHistoryPayload() {
     db.close();
 
     const highResSeries = loadHighResSeries();
+    const sampledDailyRows = sampleDailyHistoryRows(rows);
     return {
       summary: {
         startDate: rows[0]?.date || null,
@@ -285,14 +361,22 @@ function loadHistoryPayload() {
         priceRange: buildRange(rows.map((row) => row.priceUsdPerOz)),
         cnyRange: buildRange(rows.map((row) => row.priceCnyPerGram)),
         fxRange: buildRange(rows.map((row) => row.usdCnyRate)),
-        realYieldRange: buildRange(rows.map((row) => row.realYield10Y)),
-      },
-      series: rows,
-      highres: {
-        summary: {
-          startTime: highResSeries[0]?.time || null,
-          endTime: highResSeries.at(-1)?.time || null,
-          rowCount: highResSeries.length,
+        cnGoldEtfRange: buildRange(rows.map((row) => row.cnGoldEtfClose)),
+        cnGoldEtfTurnoverRange: buildRange(rows.map((row) => row.cnGoldEtfTurnover)),
+        cnGoldEtfAltRange: buildRange(rows.map((row) => row.cnGoldEtfAltClose)),
+        cnGoldEtfAltTurnoverRange: buildRange(rows.map((row) => row.cnGoldEtfAltTurnover)),
+        shfeAuMainRange: buildRange(rows.map((row) => row.shfeAuMainClose)),
+          shfeAuMainVolumeRange: buildRange(rows.map((row) => row.shfeAuMainVolume)),
+          shfeSpotPremiumRange: buildRange(rows.map((row) => row.shfeSpotPremiumCnyPerGram)),
+          realYieldRange: buildRange(rows.map((row) => row.realYield10Y)),
+          sampledRowCount: sampledDailyRows.length,
+        },
+        series: sampledDailyRows,
+        highres: {
+          summary: {
+            startTime: highResSeries[0]?.time || null,
+            endTime: highResSeries.at(-1)?.time || null,
+            rowCount: highResSeries.length,
         },
         series: highResSeries,
       },
@@ -306,11 +390,19 @@ function loadHistoryPayload() {
         priceRange: null,
         cnyRange: null,
         fxRange: null,
-        realYieldRange: null,
-      },
-      series: [],
-      highres: {
-        summary: { startTime: null, endTime: null, rowCount: 0 },
+        cnGoldEtfRange: null,
+        cnGoldEtfTurnoverRange: null,
+        cnGoldEtfAltRange: null,
+        cnGoldEtfAltTurnoverRange: null,
+        shfeAuMainRange: null,
+          shfeAuMainVolumeRange: null,
+          shfeSpotPremiumRange: null,
+          realYieldRange: null,
+          sampledRowCount: 0,
+        },
+        series: [],
+        highres: {
+          summary: { startTime: null, endTime: null, rowCount: 0 },
         series: [],
       },
     };
@@ -320,23 +412,59 @@ function loadHistoryPayload() {
 function loadHighResSeries() {
   try {
     const db = new DatabaseSync(HIGHRES_DB_FILE, { readOnly: true });
+    const recentCutoffUtc = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
+    const mediumCutoffUtc = Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000);
+    const longCutoffUtc = Math.floor((Date.now() - 3 * 365 * 24 * 60 * 60 * 1000) / 1000);
     const rows = db.prepare(`
+      WITH sampled AS (
+        SELECT
+          timestamp_local AS time,
+          price_source AS priceSource,
+          price_usd_per_oz AS priceUsdPerOz,
+          price_cny_per_gram AS priceCnyPerGram,
+          usd_cny_rate AS usdCnyRate,
+          gc_front_close AS gcFrontClose,
+          gc_front_volume AS gcFrontVolume,
+          gld_close AS gldClose,
+          gld_volume AS gldVolume,
+          uup_close AS uupClose,
+          uup_volume AS uupVolume,
+          fx_carried_forward AS fxCarriedForward,
+          timestamp_utc AS timestampUtc
+        FROM intraday_history
+        WHERE timestamp_utc >= ?
+           OR (
+              timestamp_utc >= ?
+             AND timestamp_utc < ?
+             AND substr(timestamp_local, 12, 5) IN ('00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00')
+           )
+           OR (
+              timestamp_utc >= ?
+              AND timestamp_utc < ?
+              AND substr(timestamp_local, 12, 5) IN ('00:00', '12:00')
+           )
+           OR (
+               timestamp_local >= '2012-06-27 00:00:00'
+              AND timestamp_utc < ?
+              AND substr(timestamp_local, 12, 5) = '00:00'
+            )
+      )
       SELECT
-        timestamp_local AS time,
-        price_source AS priceSource,
-        price_usd_per_oz AS priceUsdPerOz,
-        price_cny_per_gram AS priceCnyPerGram,
-        usd_cny_rate AS usdCnyRate,
-        gc_front_close AS gcFrontClose,
-        gc_front_volume AS gcFrontVolume,
-        gld_close AS gldClose,
-        gld_volume AS gldVolume,
-        uup_close AS uupClose,
-        uup_volume AS uupVolume,
-        fx_carried_forward AS fxCarriedForward
-      FROM intraday_history
-      ORDER BY timestamp_utc ASC
-    `).all();
+        time,
+        priceSource,
+        priceUsdPerOz,
+        priceCnyPerGram,
+        usdCnyRate,
+        gcFrontClose,
+        gcFrontVolume,
+        gldClose,
+        gldVolume,
+        uupClose,
+        uupVolume,
+        fxCarriedForward
+      FROM sampled
+      ORDER BY timestampUtc ASC
+    `).all(recentCutoffUtc, mediumCutoffUtc, recentCutoffUtc, longCutoffUtc, mediumCutoffUtc, longCutoffUtc);
     db.close();
     return rows;
   } catch {
@@ -359,6 +487,19 @@ function buildLivePayload(state, highFrequencyRows, dailyRows) {
       intradayRange: buildRange(recentHighFrequency.map((row) => row.priceUsdPerOz)),
       cnyRange: buildRange(recentHighFrequency.map((row) => row.priceCnyPerGram)),
       gcVolumeRange: buildRange(recentHighFrequency.map((row) => row.gcFrontVolume)),
+      gcOpenInterestRange: buildRange(recentHighFrequency.map((row) => row.gcFrontOpenInterest)),
+      cnGoldEtfRange: buildRange(recentHighFrequency.map((row) => row.cnGoldEtfClose)),
+      cnGoldEtfTurnoverRange: buildRange(recentHighFrequency.map((row) => row.cnGoldEtfTurnover)),
+      cnGoldEtfAltRange: buildRange(recentHighFrequency.map((row) => row.cnGoldEtfAltClose)),
+      cnGoldEtfAltTurnoverRange: buildRange(recentHighFrequency.map((row) => row.cnGoldEtfAltTurnover)),
+      shfeAuMainRange: buildRange(recentHighFrequency.map((row) => row.shfeAuMainClose)),
+      shfeAuMainVolumeRange: buildRange(recentHighFrequency.map((row) => row.shfeAuMainVolume)),
+      shfeAuMainOpenInterestRange: buildRange(recentHighFrequency.map((row) => row.shfeAuMainOpenInterest)),
+      sgeAu9999Range: buildRange(recentHighFrequency.map((row) => row.sgeAu9999)),
+      sgeAuTdRange: buildRange(recentHighFrequency.map((row) => row.sgeAuTd)),
+      sgeSpotPremiumRange: buildRange(recentHighFrequency.map((row) => row.sgeSpotPremiumCnyPerGram)),
+      sgeTdSpreadRange: buildRange(recentHighFrequency.map((row) => row.sgeTdSpreadCnyPerGram)),
+      shfeSpotPremiumRange: buildRange(recentHighFrequency.map((row) => row.shfeSpotPremiumCnyPerGram)),
       realYieldRange: buildRange(dailySeries.map((row) => row.realYield10Y)),
     },
     highFrequency: recentHighFrequency,
@@ -481,6 +622,40 @@ function buildRange(values) {
     min: round(Math.min(...numbers), 4),
     max: round(Math.max(...numbers), 4),
   };
+}
+
+function sampleDailyHistoryRows(rows) {
+  if (!Array.isArray(rows) || rows.length <= 2400) return rows;
+
+  const now = new Date();
+  const recentCutoff = shiftUtcDate(now, -365 * 2);
+  const mediumCutoff = shiftUtcDate(now, -365 * 5);
+
+  return rows.filter((row, index) => {
+    const current = toUtcDate(row.date);
+    if (!current) return index === 0 || index === rows.length - 1;
+    if (current >= recentCutoff) return true;
+    if (current >= mediumCutoff) return current.getUTCDay() === 1;
+    return current.getUTCDate() <= 3;
+  });
+}
+
+function toUtcDate(value) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function shiftUtcDate(baseDate, offsetDays) {
+  return new Date(Date.UTC(
+    baseDate.getUTCFullYear(),
+    baseDate.getUTCMonth(),
+    baseDate.getUTCDate() + offsetDays,
+    0,
+    0,
+    0,
+    0
+  ));
 }
 
 function toNumber(value) {

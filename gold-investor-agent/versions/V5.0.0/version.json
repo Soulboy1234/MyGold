@@ -1,0 +1,8 @@
+{
+  "version": "V5.0.0",
+  "updatedAt": "2026-03-23 19:15:00 +08:00",
+  "basePath": "../..",
+  "snapshotPath": "./snapshot",
+  "archivePath": "./archive",
+  "note": "Major refresh of the formal agents and research stack: extended free high-resolution market history back to 2012, redesigned Agent2 around Agent1's steadier medium-term framework for higher-quality short-term trading, rebuilt Agent3 as a clearer long-horizon value allocator, and tightened strict no-lookahead evaluation workflows."
+}

@@ -1,0 +1,8 @@
+{
+  "version": "V5.0.1",
+  "updatedAt": "2026-03-23 21:20:00 +08:00",
+  "basePath": "../..",
+  "snapshotPath": "./snapshot",
+  "archivePath": "./archive",
+  "note": "Hardened the formal dashboard after the V5.0.0 strategy refresh by removing write-token leakage, allowing same-origin browser mutations without exposing secrets, and tolerating missing shared chart databases."
+}

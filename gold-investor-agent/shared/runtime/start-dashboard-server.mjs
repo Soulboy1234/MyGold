@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import {
   cancelPendingOrder,
   listAgentMetas,
@@ -44,6 +45,12 @@ const CONTENT_SECURITY_POLICY = [
   "base-uri 'self'",
   "frame-ancestors 'none'",
 ].join("; ");
+
+const SHARED_CHART_CACHE_TTL_MS = 15 * 1000;
+let sharedChartCache = {
+  expiresAt: 0,
+  series: null,
+};
 
 export function startDashboardServer() {
   const projectRoot = resolveProjectRoot();
@@ -174,8 +181,11 @@ async function loadDashboardPayload(agentName) {
     const pendingOrders = await readJsonFile(pendingOrdersFile, []);
     const comparableSummary = await loadComparablePortfolioSnapshot(agentMeta.folderName, { market });
     const latestAction = payload.summary?.latestAction || payload.latestAction || payload.agent?.lastAction || null;
-    return {
+    const sharedChartSeries = await loadSharedChartSeries();
+    const chart = patchChartPayload(payload.chart, sharedChartSeries);
+    return compactDashboardPayload({
       ...payload,
+      chart,
       manualControls: {
         ...(payload.manualControls || {}),
         pendingOrders: Array.isArray(pendingOrders) ? pendingOrders : [],
@@ -192,10 +202,256 @@ async function loadDashboardPayload(agentName) {
         valuationCheckedAtLocal: market?.checkedAtLocal || null,
       },
       agent: agentMeta,
-    };
+    });
   } catch {
     return { agent: agentMeta, missing: true };
   }
+}
+
+function patchChartPayload(chart, sharedSeries) {
+  if (!chart || !Array.isArray(sharedSeries) || sharedSeries.length === 0) {
+    return chart;
+  }
+
+  const patchedMarkers = Array.isArray(chart.tradeMarkers)
+    ? chart.tradeMarkers.map((marker) => ({
+        ...marker,
+        priceCnyPerGram:
+          findChartPrice(sharedSeries, marker.time) ??
+          findChartPrice(sharedSeries, marker.date) ??
+          marker.priceCnyPerGram ??
+          null,
+      }))
+    : chart.tradeMarkers;
+
+  return {
+    ...chart,
+    series: sharedSeries,
+    tradeMarkers: patchedMarkers,
+  };
+}
+
+function compactDashboardPayload(payload) {
+  const chart = payload?.chart;
+  if (!chart || !Array.isArray(chart.series)) return payload;
+  return {
+    ...payload,
+    chart: {
+      ...chart,
+      series: sampleDashboardSeries(chart.series),
+      movingAverages: undefined,
+    },
+  };
+}
+
+function sampleDashboardSeries(series) {
+  if (!Array.isArray(series) || series.length <= 18000) return series;
+  const intradayStartMs = Date.UTC(2012, 5, 27, 0, 0, 0);
+  const lastTime = parseDashboardTime(series.at(-1)?.time);
+  if (!Number.isFinite(lastTime)) return series;
+  const recentFullCutoffMs = lastTime - 30 * 24 * 60 * 60 * 1000;
+  const mediumCutoffMs = lastTime - 365 * 24 * 60 * 60 * 1000;
+  return series.filter((point) => {
+    const timeMs = parseDashboardTime(point?.time);
+    if (!Number.isFinite(timeMs)) return false;
+    if (timeMs < intradayStartMs) return true;
+    const timePart = String(point?.time || "").slice(11, 16);
+    if (timeMs >= recentFullCutoffMs) return true;
+    if (timeMs >= mediumCutoffMs) {
+      return [
+        "00:00",
+        "02:00",
+        "04:00",
+        "06:00",
+        "08:00",
+        "10:00",
+        "12:00",
+        "14:00",
+        "16:00",
+        "18:00",
+        "20:00",
+        "22:00",
+      ].includes(timePart);
+    }
+    return timePart === "00:00" || timePart === "12:00";
+  });
+}
+
+function parseDashboardTime(value) {
+  if (typeof value !== "string") return Number.NaN;
+  return new Date(String(value).replace(" ", "T")).getTime();
+}
+
+function findChartPrice(series, timeOrDate) {
+  if (typeof timeOrDate !== "string" || !timeOrDate) return null;
+  const target = timeOrDate.length === 10 ? `${timeOrDate} 23:59:59` : timeOrDate;
+  for (let i = series.length - 1; i >= 0; i -= 1) {
+    if (series[i]?.time <= target) return series[i]?.priceCnyPerGram ?? null;
+  }
+  return series.at(-1)?.priceCnyPerGram ?? null;
+}
+
+async function loadSharedChartSeries() {
+  const now = Date.now();
+  if (Array.isArray(sharedChartCache.series) && sharedChartCache.expiresAt > now) {
+    return sharedChartCache.series;
+  }
+
+  const projectRoot = resolveProjectRoot();
+  const workspaceRoot = path.resolve(projectRoot, "..");
+  const dailyDbPath = path.join(workspaceRoot, "gold-dashboard", "data", "history.db");
+  const intradayDbPath = path.join(workspaceRoot, "gold-dashboard", "data", "highres.db");
+  const intradayJsonlPath = path.join(workspaceRoot, "gold-monitor", "state", "high_frequency_history.jsonl");
+  const latestPath = path.join(workspaceRoot, "gold-monitor", "state", "latest.json");
+
+  const [dailyRows, intradayRows, intradayTape, latest] = await Promise.all([
+    loadDailyChartRows(dailyDbPath),
+    loadIntradayChartRows(intradayDbPath),
+    readJsonLinesFile(intradayJsonlPath),
+    readJsonFile(latestPath, null),
+  ]);
+
+  const intradaySeries = mergeIntradayChartSeries(intradayRows, intradayTape, latest);
+  const firstIntradayDate = intradaySeries[0]?.time?.slice(0, 10) ?? null;
+  const series = [];
+
+  for (const row of dailyRows) {
+    if (firstIntradayDate && row.date >= firstIntradayDate) continue;
+    series.push({
+      time: `${row.date} 15:00:00`,
+      date: row.date,
+      priceCnyPerGram: row.priceCnyPerGram,
+    });
+  }
+
+  for (const row of intradaySeries) {
+    series.push(row);
+  }
+
+  const sampledSeries = sampleDashboardSeries(series);
+  sharedChartCache = {
+    expiresAt: now + SHARED_CHART_CACHE_TTL_MS,
+    series: sampledSeries,
+  };
+  return sampledSeries;
+}
+
+async function loadDailyChartRows(dbPath) {
+  if (!existsSync(dbPath)) {
+    return [];
+  }
+
+  let db;
+  try {
+    db = new DatabaseSync(dbPath, { readonly: true });
+    return db.prepare(`
+      SELECT
+        date,
+        price_cny_per_gram AS priceCnyPerGram
+      FROM daily_history
+      WHERE price_cny_per_gram IS NOT NULL
+      ORDER BY date
+    `).all();
+  } finally {
+    db?.close();
+  }
+}
+
+async function loadIntradayChartRows(dbPath) {
+  if (!existsSync(dbPath)) {
+    return [];
+  }
+
+  let db;
+  try {
+    db = new DatabaseSync(dbPath, { readonly: true });
+    const recentCutoffUtc = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
+    const mediumCutoffUtc = Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000);
+
+    return db.prepare(`
+      WITH sampled AS (
+        SELECT
+          timestamp_local AS timestampLocal,
+          price_cny_per_gram AS priceCnyPerGram,
+          timestamp_utc AS timestampUtc
+        FROM intraday_history
+        WHERE price_cny_per_gram IS NOT NULL
+          AND (
+            timestamp_utc >= ?
+            OR (
+              timestamp_utc >= ?
+              AND timestamp_utc < ?
+              AND substr(timestamp_local, 12, 5) IN ('00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00')
+            )
+            OR (
+              timestamp_local >= '2012-06-27 00:00:00'
+              AND timestamp_utc < ?
+              AND substr(timestamp_local, 12, 5) IN ('00:00', '12:00')
+            )
+          )
+      )
+      SELECT timestampLocal, priceCnyPerGram
+      FROM sampled
+      ORDER BY timestampUtc
+    `).all(recentCutoffUtc, mediumCutoffUtc, recentCutoffUtc, mediumCutoffUtc);
+  } finally {
+    db?.close();
+  }
+}
+
+function mergeIntradayChartSeries(intradayRows, intradayTape, latest) {
+  const map = new Map();
+
+  for (const row of intradayRows) {
+    const timestampLocal = normalizeLocalTimestamp(row?.timestampLocal);
+    const priceCnyPerGram = Number(row?.priceCnyPerGram);
+    if (!timestampLocal || !Number.isFinite(priceCnyPerGram)) continue;
+    map.set(timestampLocal, {
+      time: timestampLocal,
+      date: timestampLocal.slice(0, 10),
+      priceCnyPerGram,
+    });
+  }
+
+  for (const row of Array.isArray(intradayTape) ? intradayTape : []) {
+    const timestampLocal = normalizeLocalTimestamp(row?.checkedAtLocal);
+    const priceCnyPerGram = Number(row?.priceCnyPerGram);
+    if (!timestampLocal || !Number.isFinite(priceCnyPerGram)) continue;
+    map.set(timestampLocal, {
+      time: timestampLocal,
+      date: timestampLocal.slice(0, 10),
+      priceCnyPerGram,
+    });
+  }
+
+  const latestTime = normalizeLocalTimestamp(latest?.checkedAtLocal);
+  const latestPrice = Number(latest?.priceCnyPerGram);
+  if (latestTime && Number.isFinite(latestPrice)) {
+    map.set(latestTime, {
+      time: latestTime,
+      date: latestTime.slice(0, 10),
+      priceCnyPerGram: latestPrice,
+    });
+  }
+
+  return [...map.values()].sort((left, right) => parseDashboardTime(left.time) - parseDashboardTime(right.time));
+}
+
+async function readJsonLinesFile(filePath) {
+  try {
+    const text = cleanText(await readFile(filePath, "utf8"));
+    return text.split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+  } catch {
+    return [];
+  }
+}
+
+function normalizeLocalTimestamp(value) {
+  if (typeof value !== "string") return null;
+  const match = value.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2}) (\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) return value;
+  const [, year, month, day, hour, minute, second] = match;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")} ${hour}:${minute}:${second}`;
 }
 
 function resolvePublicPath(publicDir, pathname) {
@@ -305,8 +561,7 @@ async function readJsonFile(filePath, fallbackValue) {
 function buildSecurityDescriptor() {
   return {
     bindMode: SERVER_BINDING.mode,
-    writeToken: WRITE_TOKEN,
-    requiresSameOrigin: requiresSameOriginGuard(SERVER_BINDING.mode),
+    requiresSameOrigin: true,
   };
 }
 
@@ -366,21 +621,16 @@ function isRequestAllowed(req, mode) {
 
 function ensureMutationAuthorized(req) {
   const requestToken = String(req.headers["x-gold-investor-write-token"] || "").trim();
-  if (!requestToken || requestToken !== WRITE_TOKEN) {
-    const error = new Error("Missing or invalid write token");
-    error.statusCode = 403;
-    throw error;
+  if (isSameOriginMutationRequest(req)) {
+    return;
+  }
+  if (requestToken && requestToken === WRITE_TOKEN) {
+    return;
   }
 
-  if (requiresSameOriginGuard(SERVER_BINDING.mode) && !isSameOriginMutationRequest(req)) {
-    const error = new Error("Mutation requests must originate from the dashboard page");
-    error.statusCode = 403;
-    throw error;
-  }
-}
-
-function requiresSameOriginGuard(mode) {
-  return mode !== "local";
+  const error = new Error("Mutation requests must originate from the dashboard page or include a valid write token");
+  error.statusCode = 403;
+  throw error;
 }
 
 function isSameOriginMutationRequest(req) {

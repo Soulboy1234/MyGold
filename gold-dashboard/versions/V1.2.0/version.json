@@ -1,0 +1,8 @@
+{
+  "version": "V1.2.0",
+  "updatedAt": "2026-03-23 21:20:00 +08:00",
+  "basePath": "../..",
+  "snapshotPath": ".",
+  "serverEntryPath": "../../server.mjs",
+  "note": "Expanded dashboard chart coverage for domestic gold market signals, added free high-resolution history tooling, and removed local absolute-path metadata from the public API."
+}

@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
+import { loadDukascopyBackfill } from "./dukascopy-highres-backfill.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,10 +67,11 @@ const SERIES = [
 
 await mkdir(DATA_DIR, { recursive: true });
 
+const dukascopyBackfill = await loadDukascopyBackfill(DATA_DIR);
 const resolvedSeries = {};
 const sourceSummary = {};
 for (const config of SERIES) {
-  const resolved = await resolveSeries(config);
+  const resolved = await resolveSeries(config, dukascopyBackfill);
   if (!resolved) {
     throw new Error(`No high-resolution source available for ${config.key}`);
   }
@@ -148,17 +150,45 @@ const summary = {
   rowCount: mergedRows.length,
   startTime: mergedRows[0]?.timestampLocal || null,
   endTime: mergedRows.at(-1)?.timestampLocal || null,
+  backfill: dukascopyBackfill.meta,
   sources: sourceSummary,
 };
 await writeFile(SUMMARY_FILE, JSON.stringify(summary, null, 2) + "\n", "utf8");
 console.log(JSON.stringify(summary, null, 2));
 
-async function resolveSeries(config) {
+async function resolveSeries(config, dukascopyBackfill) {
+  const resolvedCandidates = [];
+  const backfillRows = config.key === "gold"
+    ? dukascopyBackfill?.goldRows
+    : config.key === "usdCnyRate"
+      ? dukascopyBackfill?.fxRows
+      : null;
+  if (Array.isArray(backfillRows) && backfillRows.length) {
+    resolvedCandidates.push({
+      candidate: {
+        symbol: config.key === "gold" ? "xauusd" : "usdcnh",
+        label: config.key === "gold" ? "Dukascopy XAUUSD" : "Dukascopy USDCNH",
+        interval: "mixed",
+        range: "cached",
+      },
+      rows: backfillRows,
+      meta: {
+        symbol: config.key === "gold" ? "xauusd" : "usdcnh",
+        label: config.key === "gold" ? "Dukascopy XAUUSD" : "Dukascopy USDCNH",
+        interval: "mixed",
+        range: "cached",
+        points: backfillRows.length,
+        firstTime: backfillRows[0]?.timestampLocal || null,
+        lastTime: backfillRows.at(-1)?.timestampLocal || null,
+      },
+    });
+  }
   for (const candidate of config.candidates) {
     const payload = await fetchYahooChart(candidate.symbol, candidate.interval, candidate.range);
-    const rows = parseYahooIntraday(payload);
+    const rows = parseYahooIntraday(payload, candidate.interval);
     if (rows.length) {
-      return {
+      resolvedCandidates.push({
+        candidate,
         rows,
         meta: {
           symbol: candidate.symbol,
@@ -166,11 +196,28 @@ async function resolveSeries(config) {
           interval: payload?.chart?.result?.[0]?.meta?.dataGranularity || candidate.interval,
           range: candidate.range,
           points: rows.length,
+          firstTime: rows[0]?.timestampLocal || null,
+          lastTime: rows.at(-1)?.timestampLocal || null,
         },
-      };
+      });
     }
   }
-  return null;
+  if (!resolvedCandidates.length) return null;
+
+  const mergedRows = mergeCandidateRows(resolvedCandidates);
+  return {
+    rows: mergedRows,
+    meta: {
+      symbol: resolvedCandidates[0].meta.symbol,
+      label: resolvedCandidates[0].meta.label,
+      interval: resolvedCandidates[0].meta.interval,
+      range: resolvedCandidates[0].meta.range,
+      points: mergedRows.length,
+      firstTime: mergedRows[0]?.timestampLocal || null,
+      lastTime: mergedRows.at(-1)?.timestampLocal || null,
+      candidates: resolvedCandidates.map((item) => item.meta),
+    },
+  };
 }
 
 async function fetchYahooChart(symbol, interval, range) {
@@ -187,16 +234,51 @@ async function fetchYahooChart(symbol, interval, range) {
   return response.json();
 }
 
-function parseYahooIntraday(payload) {
+function parseYahooIntraday(payload, fallbackInterval = "5m") {
   const result = payload?.chart?.result?.[0];
   const timestamps = result?.timestamp || [];
   const quote = result?.indicators?.quote?.[0] || {};
+  const granularity = result?.meta?.dataGranularity || fallbackInterval;
   return timestamps.map((timestamp, index) => ({
     timestampUtc: Number(timestamp),
     timestampLocal: formatLocalDateTime(new Date(Number(timestamp) * 1000)),
+    granularity,
     close: toPositiveNumber(quote.close?.[index]),
     volume: toPositiveInteger(quote.volume?.[index]),
   })).filter((row) => row.timestampUtc && (row.close !== null || row.volume !== null));
+}
+
+function mergeCandidateRows(candidates) {
+  const byTimestamp = new Map();
+  const orderedCandidates = [...candidates].sort(
+    (left, right) => intervalToMinutes(right.meta.interval) - intervalToMinutes(left.meta.interval)
+  );
+
+  for (const candidate of orderedCandidates) {
+    for (const row of candidate.rows) {
+      const current = byTimestamp.get(row.timestampUtc);
+      if (!current || intervalToMinutes(row.granularity) <= intervalToMinutes(current.granularity)) {
+        byTimestamp.set(row.timestampUtc, {
+          ...row,
+          sourceLabel: candidate.meta.label,
+        });
+      }
+    }
+  }
+
+  return [...byTimestamp.values()].sort((left, right) => left.timestampUtc - right.timestampUtc);
+}
+
+function intervalToMinutes(interval) {
+  if (typeof interval !== "string") return Number.POSITIVE_INFINITY;
+  const match = interval.match(/^(\d+)([mhd])$/i);
+  if (!match) return Number.POSITIVE_INFINITY;
+  const value = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  if (unit === "m") return value;
+  if (unit === "h") return value * 60;
+  if (unit === "d") return value * 1440;
+  return Number.POSITIVE_INFINITY;
 }
 
 function mergeIntradaySeries(seriesMap, sourceSummary) {
@@ -207,7 +289,7 @@ function mergeIntradaySeries(seriesMap, sourceSummary) {
     const current = byTimestamp.get(timestampUtc) || {
       timestampUtc,
       timestampLocal: formatLocalDateTime(new Date(timestampUtc * 1000)),
-      granularity: "5m",
+      granularity: patch.granularity || "5m",
       priceSource,
       priceUsdPerOz: null,
       priceCnyPerGram: null,
@@ -220,14 +302,22 @@ function mergeIntradaySeries(seriesMap, sourceSummary) {
       uupVolume: null,
       fxCarriedForward: false,
     };
-    byTimestamp.set(timestampUtc, { ...current, ...patch });
+    const nextGranularity = current.granularity && patch.granularity
+      ? (intervalToMinutes(patch.granularity) < intervalToMinutes(current.granularity) ? patch.granularity : current.granularity)
+      : (patch.granularity || current.granularity);
+    byTimestamp.set(timestampUtc, { ...current, ...patch, granularity: nextGranularity });
   };
 
-  for (const row of seriesMap.gold || []) assign(row.timestampUtc, { timestampLocal: row.timestampLocal, priceUsdPerOz: row.close });
-  for (const row of seriesMap.usdCnyRate || []) assign(row.timestampUtc, { timestampLocal: row.timestampLocal, usdCnyRate: row.close });
-  for (const row of seriesMap.gc || []) assign(row.timestampUtc, { timestampLocal: row.timestampLocal, gcFrontClose: row.close, gcFrontVolume: row.volume });
-  for (const row of seriesMap.gld || []) assign(row.timestampUtc, { timestampLocal: row.timestampLocal, gldClose: row.close, gldVolume: row.volume });
-  for (const row of seriesMap.uup || []) assign(row.timestampUtc, { timestampLocal: row.timestampLocal, uupClose: row.close, uupVolume: row.volume });
+  for (const row of seriesMap.gold || []) assign(row.timestampUtc, {
+    timestampLocal: row.timestampLocal,
+    granularity: row.granularity,
+    priceUsdPerOz: row.close,
+    priceSource: row.sourceLabel || priceSource,
+  });
+  for (const row of seriesMap.usdCnyRate || []) assign(row.timestampUtc, { timestampLocal: row.timestampLocal, granularity: row.granularity, usdCnyRate: row.close });
+  for (const row of seriesMap.gc || []) assign(row.timestampUtc, { timestampLocal: row.timestampLocal, granularity: row.granularity, gcFrontClose: row.close, gcFrontVolume: row.volume });
+  for (const row of seriesMap.gld || []) assign(row.timestampUtc, { timestampLocal: row.timestampLocal, granularity: row.granularity, gldClose: row.close, gldVolume: row.volume });
+  for (const row of seriesMap.uup || []) assign(row.timestampUtc, { timestampLocal: row.timestampLocal, granularity: row.granularity, uupClose: row.close, uupVolume: row.volume });
 
   const rows = [...byTimestamp.values()].sort((left, right) => left.timestampUtc - right.timestampUtc);
   fillForward(rows, "usdCnyRate", "fxCarriedForward");

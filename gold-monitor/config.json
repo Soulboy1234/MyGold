@@ -1,39 +1,47 @@
 ﻿{
-    "symbol":  "XAU/USD",
-    "schedule":  {
-                     "intervalMinutes":  5
-                 },
-    "dataSource":  {
-                       "provider":  "validated-multi-source",
-                       "goldSymbol":  "xauusd",
-                       "fxSymbol":  "usdcny",
-                       "cnGoldSymbols":  [
-                                             "hf_XAU",
-                                             "hf_GC"
-                                         ],
-                       "cnFxSymbols":  [
-                                           "fx_susdcny",
-                                           "USDCNY",
-                                           "fx_USDCNY"
-                                       ],
-                       "cnGoldFuturesSymbols":  [
-                                                    "hf_GC"
-                                                ],
-                       "goldFuturesSymbol":  "GC=F",
-                       "eastmoneyGcQuoteCode":  "101_GC00Y",
-                       "goldEtfSymbol":  "GLD",
-                       "eastmoneyGldSecid":  "107.GLD",
-                       "dollarProxySymbol":  "UUP",
-                       "eastmoneyDollarProxySecid":  "107.UUP",
-                       "realYieldFredSeries":  "FII10",
-                       "goldApiSymbol":  "XAU",
-                       "yahooFxSymbol":  "USDCNY=X",
-                       "stooqGldSymbol":  "gld.us",
-                       "stooqDollarProxySymbol":  "uup.us",
-                       "treasuryRealYieldUrl":  "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2026/all?type=daily_treasury_real_yield_curve"
-                   },
-    "thresholds":  {
-                       "upperUsd":  5500,
-                       "lowerUsd":  5000
-                   }
+  "symbol": "XAU/USD",
+  "schedule": {
+    "intervalMinutes": 5
+  },
+  "dataSource": {
+    "provider": "validated-multi-source",
+    "goldSymbol": "xauusd",
+    "fxSymbol": "usdcny",
+    "goldFuturesSymbol": "GC=F",
+    "eastmoneyGcQuoteCode": "101_GC00Y",
+    "goldEtfSymbol": "GLD",
+    "eastmoneyGldSecid": "107.GLD",
+    "dollarProxySymbol": "UUP",
+    "eastmoneyDollarProxySecid": "107.UUP",
+    "realYieldFredSeries": "FII10",
+    "goldApiSymbol": "XAU",
+    "yahooFxSymbol": "USDCNY=X",
+    "stooqGldSymbol": "gld.us",
+    "stooqDollarProxySymbol": "uup.us",
+    "treasuryRealYieldUrl": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2026/all?type=daily_treasury_real_yield_curve",
+    "eastmoneyCnGoldEtfSecid": "1.518880",
+    "eastmoneyCnGoldEtfAltSecid": "1.518890",
+    "eastmoneyShfeAuMainListCode": "113,1",
+    "eastmoneyShfeAuMainDm": "aum",
+    "sgeDelayedUrl": "https://www.sge.com.cn/sjzx/yshqbg",
+    "cnGoldSymbols": [
+      "hf_XAU",
+      "hf_GC"
+    ],
+    "cnFxSymbols": [
+      "fx_susdcny",
+      "USDCNY",
+      "fx_USDCNY"
+    ],
+    "cnGoldFuturesSymbols": [
+      "hf_GC"
+    ],
+    "cnShfeGoldSymbols": [
+      "nf_AU0"
+    ]
+  },
+  "thresholds": {
+    "upperUsd": 5500,
+    "lowerUsd": 5000
+  }
 }

@@ -1,6 +1,6 @@
 {
   "name": "gold-dashboard",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,6 +8,11 @@
   },
   "scripts": {
     "start": "node server.mjs",
-    "sync-history": "node scripts/sync-history.mjs"
+    "sync-history": "node scripts/sync-history.mjs",
+    "sync-highres": "node scripts/sync-highres-history.mjs",
+    "backfill-highres": "node scripts/dukascopy-highres-backfill.mjs"
+  },
+  "dependencies": {
+    "dukascopy-node": "^1.46.4"
   }
 }

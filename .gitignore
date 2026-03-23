@@ -62,6 +62,7 @@ gold-task-suite-macos/state/install-state.json
 *.sqlite3
 
 # Generated local data caches and build artifacts
+download/
 gold-dashboard/data/
 coverage
 *.lcov

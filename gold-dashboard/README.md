@@ -1,6 +1,6 @@
 # Gold Dashboard
 
-Current version: `V1.1.0`
+Current version: `V1.2.0`
 
 `gold-dashboard` provides the local visualization panel for the gold monitoring workspace.
 
