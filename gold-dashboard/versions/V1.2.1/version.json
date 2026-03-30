@@ -1,0 +1,8 @@
+{
+  "version": "V1.2.1",
+  "updatedAt": "2026-03-30 20:30:00 +08:00",
+  "basePath": "../..",
+  "snapshotPath": ".",
+  "serverEntryPath": "../../server.mjs",
+  "note": "Adjusted live chart windows to use true time-based ranges instead of fixed row counts so dense recent data no longer squeezes the intended 30-day and 365-day views."
+}

@@ -26,6 +26,7 @@ const APP_STATE = {
   security: {
     bindMode: "local",
     requiresSameOrigin: false,
+    writeToken: "",
   },
   defaultAgent: null,
   agents: [],
@@ -141,6 +142,7 @@ function setAgentRegistry(registry, { useStoredSelection = false } = {}) {
   APP_STATE.security = {
     bindMode: registry.security?.bindMode || "local",
     requiresSameOrigin: Boolean(registry.security?.requiresSameOrigin),
+    writeToken: String(registry.security?.writeToken || ""),
   };
   APP_STATE.defaultAgent = registry.defaultAgent || null;
   APP_STATE.agents = Array.isArray(registry.agents) ? registry.agents : [];
@@ -688,5 +690,10 @@ function pickLatestTimestamp(values) {
   return latestValue;
 }
 function buildWriteHeaders() {
-  return {};
+  const headers = {};
+  const writeToken = String(APP_STATE.security?.writeToken || "").trim();
+  if (writeToken) {
+    headers["x-gold-investor-write-token"] = writeToken;
+  }
+  return headers;
 }

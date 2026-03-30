@@ -1,6 +1,6 @@
 # gold-task-suite-win
 
-Current package version: `V1.5.0`
+Current package version: `V1.5.1`
 
 This folder is the Windows packaging and environment-control layer for:
 
@@ -40,8 +40,8 @@ It corresponds to the platform-specific packaging set:
 ## Managed Versions
 
 - `gold-monitor`: `package 1.2.0`, `snapshot V1.2.0`
-- `gold-dashboard`: `package 1.2.0`, `snapshot V1.2.0`
-- `gold-investor-agent`: `package 5.0.1`, `snapshot V5.0.1`
+- `gold-dashboard`: `package 1.2.1`, `snapshot V1.2.1`
+- `gold-investor-agent`: `package 5.0.2`, `snapshot V5.0.2`
 
 See `manifest.json` for details.
 

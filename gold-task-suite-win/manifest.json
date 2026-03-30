@@ -1,7 +1,7 @@
 {
   "suiteName": "gold-task-suite-win",
-  "suiteVersion": "1.5.0",
-  "generatedAt": "2026-03-23T21:20:00+08:00",
+  "suiteVersion": "1.5.1",
+  "generatedAt": "2026-03-30T20:30:00+08:00",
   "workspaceLayout": {
     "goldMonitor": "../gold-monitor",
     "goldDashboard": "../gold-dashboard",
@@ -24,8 +24,8 @@
     {
       "name": "黄金追踪",
       "directory": "../gold-monitor",
-      "packageVersion": "1.2.0",
-      "snapshotVersion": "V1.2.0",
+      "packageVersion": "1.2.1",
+      "snapshotVersion": "V1.2.1",
       "entrypoints": [
         "src/monitor.mjs",
         "src/daemon.mjs"
@@ -43,8 +43,8 @@
     {
       "name": "黄金投资Agent",
       "directory": "../gold-investor-agent",
-      "packageVersion": "5.0.1",
-      "snapshotVersion": "V5.0.1",
+      "packageVersion": "5.0.2",
+      "snapshotVersion": "V5.0.2",
       "entrypoints": [
         "src/agent.mjs",
         "src/daemon.mjs",

@@ -48,16 +48,16 @@ Key files:
 
 Current packaging version set:
 
-- `gold-task-suite-win`: `V1.5.0`
-- `gold-task-suite-linux`: `V1.5.0`
-- `gold-task-suite-macos`: `V1.5.0`
-- `gold-task-suite-dsm`: `V1.5.0`
+- `gold-task-suite-win`: `V1.5.1`
+- `gold-task-suite-linux`: `V1.5.1`
+- `gold-task-suite-macos`: `V1.5.1`
+- `gold-task-suite-dsm`: `V1.5.1`
 
 Current Windows package set declared by `gold-task-suite-win`:
 
 - `gold-monitor`: `package 1.2.0`, `snapshot V1.2.0`
-- `gold-dashboard`: `package 1.2.0`, `snapshot V1.2.0`
-- `gold-investor-agent`: `package 5.0.1`, `snapshot V5.0.1`
+- `gold-dashboard`: `package 1.2.1`, `snapshot V1.2.1`
+- `gold-investor-agent`: `package 5.0.2`, `snapshot V5.0.2`
 
 ## Runtime Environment
 

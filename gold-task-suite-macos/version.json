@@ -1,21 +1,21 @@
 {
   "suiteName": "gold-task-suite-macos",
-  "version": "V1.5.0",
-  "updatedAt": "2026-03-23 21:20:00 +08:00",
+  "version": "V1.5.1",
+  "updatedAt": "2026-03-30 20:30:00 +08:00",
   "basePath": "..",
   "managedProjects": {
     "goldMonitor": {
-      "packageVersion": "1.2.0",
-      "snapshotVersion": "V1.2.0"
+      "packageVersion": "1.2.1",
+      "snapshotVersion": "V1.2.1"
     },
     "goldDashboard": {
       "packageVersion": "1.2.0",
       "snapshotVersion": "V1.2.0"
     },
     "goldInvestorAgent": {
-      "packageVersion": "5.0.1",
-      "snapshotVersion": "V5.0.1"
+      "packageVersion": "5.0.2",
+      "snapshotVersion": "V5.0.2"
     }
   },
-  "note": "Unified macOS packaging version aligned with the data-stack expansion, formal-agent redesign, and dashboard hardening sync."
+  "note": "Unified macOS packaging version aligned with the live-chart window fix and formal dashboard write-flow patch sync."
 }

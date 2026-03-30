@@ -23,6 +23,8 @@ const HOST = SERVER_BINDING.host;
 const PORT = Number(process.env.PORT || 3099);
 const POLL_INTERVAL_MS = 5000;
 const LIVE_STALE_AFTER_MS = 20 * 60 * 1000;
+const HIGH_FREQUENCY_CHART_WINDOW_DAYS = 30;
+const DAILY_CHART_WINDOW_DAYS = 365;
 let cachedPayload = null;
 
 const MIME_TYPES = {
@@ -473,8 +475,8 @@ function loadHighResSeries() {
 }
 
 function buildLivePayload(state, highFrequencyRows, dailyRows) {
-  const recentHighFrequency = highFrequencyRows.slice(-120);
-  const dailySeries = dailyRows.slice(-120);
+  const recentHighFrequency = keepRecentRows(highFrequencyRows, "time", HIGH_FREQUENCY_CHART_WINDOW_DAYS, 5000);
+  const dailySeries = keepRecentRows(dailyRows, "date", DAILY_CHART_WINDOW_DAYS, 400);
 
   const latest = recentHighFrequency.at(-1) || null;
   const previous = recentHighFrequency.at(-2) || null;
@@ -505,6 +507,19 @@ function buildLivePayload(state, highFrequencyRows, dailyRows) {
     highFrequency: recentHighFrequency,
     daily: dailySeries,
   };
+}
+
+function keepRecentRows(rows, key, windowDays, fallbackCount) {
+  if (!Array.isArray(rows) || !rows.length) return [];
+  const latestRow = rows.at(-1);
+  const latestDate = parseTimestamp(latestRow?.[key]);
+  if (!latestDate) return rows.slice(-fallbackCount);
+  const cutoff = latestDate.getTime() - windowDays * 24 * 60 * 60 * 1000;
+  const filtered = rows.filter((row) => {
+    const parsed = parseTimestamp(row?.[key]);
+    return parsed && parsed.getTime() >= cutoff;
+  });
+  return filtered.length ? filtered : rows.slice(-fallbackCount);
 }
 
 async function readJsonLines(filePath) {

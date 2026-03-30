@@ -1,0 +1,8 @@
+{
+  "version": "V5.0.2",
+  "updatedAt": "2026-03-30 20:30:00 +08:00",
+  "basePath": "../..",
+  "snapshotPath": "./snapshot",
+  "archivePath": "./archive",
+  "note": "Polished the formal dashboard mutation flow after V5.0.1 by keeping optional write-header compatibility in the client while ensuring the server does not expose the real runtime write token."
+}

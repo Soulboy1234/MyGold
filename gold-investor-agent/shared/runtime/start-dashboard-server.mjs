@@ -562,6 +562,7 @@ function buildSecurityDescriptor() {
   return {
     bindMode: SERVER_BINDING.mode,
     requiresSameOrigin: true,
+    writeToken: "",
   };
 }
 
